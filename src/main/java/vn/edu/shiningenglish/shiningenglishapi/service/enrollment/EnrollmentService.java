@@ -5,6 +5,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -32,6 +33,9 @@ public class EnrollmentService {
     private final OrderRepository orderRepository;
     private final ApplicationEventPublisher eventPublisher;
 
+    @Value("${star.course_complete:10}")
+    private int courseCompleteAmount;
+
     public EnrollmentService(EnrollmentRepository enrollmentRepository, LessonRepository lessonRepository,
                              LessonProgressRepository lessonProgressRepository,
                              CourseReviewRepository courseReviewRepository,
@@ -47,9 +51,16 @@ public class EnrollmentService {
 
     @Transactional
     public Enrollment enroll(Long userId, Long courseId, Long orderId) {
-        var existing = enrollmentRepository.findByUserIdAndCourseId(userId, courseId);
+        var existing = enrollmentRepository.findByUserIdAndCourseIdWithTrashed(userId, courseId);
         if (existing.isPresent()) {
-            return existing.get();
+            var enrollment = existing.get();
+            if (enrollment.getDeletedAt() != null) {
+                enrollment.setDeletedAt(null);
+                enrollment.setOrderId(orderId);
+                enrollment.setEnrolledAt(LocalDateTime.now());
+                return enrollmentRepository.save(enrollment);
+            }
+            return enrollment;
         }
         var enrollment = new Enrollment();
         enrollment.setUserId(userId);
@@ -85,7 +96,10 @@ public class EnrollmentService {
     public Map<String, Object> getLearningProgress(Long userId, Long courseId) {
         var orderedLessons = lessonRepository.findByCourseIdOrderByGroupOrderAscLessonOrderAscIdAsc(courseId);
         var orderedIds = orderedLessons.stream().map(Lesson::getId).collect(Collectors.toList());
-        var progressRows = lessonProgressRepository.findByUserIdAndCourseId(userId, courseId);
+        var allowedSet = orderedIds.stream().collect(Collectors.toSet());
+        var progressRows = lessonProgressRepository.findByUserIdAndCourseId(userId, courseId).stream()
+            .filter(p -> allowedSet.contains(p.getLessonId()))
+            .collect(Collectors.toList());
         var completedSet = progressRows.stream()
             .filter(p -> p.getCompletedAt() != null)
             .map(LessonProgress::getLessonId)
@@ -125,11 +139,14 @@ public class EnrollmentService {
 
         if (!orderedIds.contains(lessonId)) return null;
 
-        lessonProgressRepository.findByUserIdAndCourseId(userId, courseId)
-            .forEach(p -> {
-                p.setIsCurrent(false);
-                lessonProgressRepository.save(p);
-            });
+        var allowedSet = orderedIds.stream().collect(Collectors.toSet());
+
+        var existingCurrent = lessonProgressRepository.findByUserIdAndCourseId(userId, courseId).stream()
+            .filter(p -> allowedSet.contains(p.getLessonId()))
+            .filter(LessonProgress::getIsCurrent)
+            .findFirst();
+
+        lessonProgressRepository.clearCurrentByUserIdAndCourseId(userId, courseId);
 
         var progress = lessonProgressRepository.findByUserIdAndCourseIdAndLessonId(userId, courseId, lessonId)
             .orElseGet(() -> {
@@ -145,14 +162,17 @@ public class EnrollmentService {
 
         var completedSet = lessonProgressRepository.findByUserIdAndCourseId(userId, courseId).stream()
             .filter(p -> p.getCompletedAt() != null)
+            .filter(p -> allowedSet.contains(p.getLessonId()))
             .map(LessonProgress::getLessonId)
             .collect(Collectors.toSet());
         var completedIds = orderedIds.stream().filter(completedSet::contains).collect(Collectors.toList());
 
-        var currentCandidate = orderedIds.stream()
-            .filter(id -> !completedSet.contains(id))
-            .findFirst()
-            .orElse(null);
+        var currentCandidate = existingCurrent.isPresent() && !existingCurrent.get().getLessonId().equals(lessonId)
+            ? existingCurrent.get().getLessonId()
+            : orderedIds.stream()
+                .filter(id -> !completedSet.contains(id))
+                .findFirst()
+                .orElse(null);
 
         if (currentCandidate != null) {
             var currentLp = lessonProgressRepository.findByUserIdAndCourseIdAndLessonId(userId, courseId, currentCandidate)
@@ -167,7 +187,6 @@ public class EnrollmentService {
             lessonProgressRepository.save(currentLp);
         }
 
-        // Dispatch lesson completion event (async star reward)
         var completedLesson = orderedLessons.stream()
             .filter(l -> l.getId().equals(lessonId))
             .findFirst().orElse(null);
@@ -176,10 +195,9 @@ public class EnrollmentService {
             eventPublisher.publishEvent(new LessonCompletedEvent(userId, courseId, lessonId, rewardAmount, completedLesson.getName()));
         }
 
-        // Dispatch course completion event (async)
         var isLastLesson = orderedIds.size() > 0 && completedIds.size() >= orderedIds.size() && completedIds.contains(lessonId);
         if (isLastLesson) {
-            eventPublisher.publishEvent(new CourseCompletedEvent(userId, courseId, 10));
+            eventPublisher.publishEvent(new CourseCompletedEvent(userId, courseId, courseCompleteAmount));
         }
 
         var total = orderedIds.size();
@@ -195,9 +213,11 @@ public class EnrollmentService {
         result.put("has_reviewed", hasReviewed);
 
         var nextLesson = currentCandidate != null ? orderedLessons.stream()
-            .filter(l -> l.getId().equals(currentCandidate)).findFirst().orElse(null) : null;
+            .filter(l -> l.getId().equals(currentCandidate))
+            .findFirst()
+            .orElse(null) : null;
         if (nextLesson != null) {
-            result.put("next_lesson", Map.of("id", nextLesson.getId(), "has_quiz", 
+            result.put("next_lesson", Map.of("id", nextLesson.getId(), "has_quiz",
                 nextLesson.getHasQuiz() != null && nextLesson.getHasQuiz()));
         }
 
@@ -210,11 +230,7 @@ public class EnrollmentService {
         var orderedIds = orderedLessons.stream().map(Lesson::getId).collect(Collectors.toList());
         if (!orderedIds.contains(lessonId)) return null;
 
-        lessonProgressRepository.findByUserIdAndCourseId(userId, courseId)
-            .forEach(p -> {
-                p.setIsCurrent(false);
-                lessonProgressRepository.save(p);
-            });
+        lessonProgressRepository.clearCurrentByUserIdAndCourseId(userId, courseId);
 
         var lp = lessonProgressRepository.findByUserIdAndCourseIdAndLessonId(userId, courseId, lessonId)
             .orElseGet(() -> {
@@ -227,8 +243,10 @@ public class EnrollmentService {
         lp.setIsCurrent(true);
         lessonProgressRepository.save(lp);
 
+        var allowedSet = orderedIds.stream().collect(Collectors.toSet());
         var completedIds = lessonProgressRepository.findByUserIdAndCourseId(userId, courseId).stream()
             .filter(p -> p.getCompletedAt() != null)
+            .filter(p -> allowedSet.contains(p.getLessonId()))
             .map(LessonProgress::getLessonId)
             .collect(Collectors.toList());
         var total = orderedIds.size();

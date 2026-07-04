@@ -5,6 +5,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import vn.edu.shiningenglish.shiningenglishapi.enums.OrderStatus;
 import vn.edu.shiningenglish.shiningenglishapi.enums.PaymentMethod;
+import vn.edu.shiningenglish.shiningenglishapi.model.dto.transaction.checkout.CheckoutOrderResponse;
 import vn.edu.shiningenglish.shiningenglishapi.model.entity.Order;
 import vn.edu.shiningenglish.shiningenglishapi.model.entity.OrderItem;
 import vn.edu.shiningenglish.shiningenglishapi.repository.*;
@@ -12,6 +13,7 @@ import vn.edu.shiningenglish.shiningenglishapi.repository.order.*;
 import vn.edu.shiningenglish.shiningenglishapi.repository.cart.*;
 import vn.edu.shiningenglish.shiningenglishapi.repository.course.*;
 import vn.edu.shiningenglish.shiningenglishapi.service.enrollment.EnrollmentService;
+import vn.edu.shiningenglish.shiningenglishapi.service.order.strategy.PaymentStrategyFactory;
 import vn.edu.shiningenglish.shiningenglishapi.valueobject.CheckoutCustomerData;
 import vn.edu.shiningenglish.shiningenglishapi.valueobject.QueryOption;
 
@@ -27,15 +29,18 @@ public class OrderService {
     private final CartRepository cartRepository;
     private final CourseRepository courseRepository;
     private final EnrollmentService enrollmentService;
+    private final PaymentStrategyFactory paymentStrategyFactory;
 
     public OrderService(OrderRepository orderRepository, OrderItemRepository orderItemRepository,
                         CartRepository cartRepository, CourseRepository courseRepository,
-                        EnrollmentService enrollmentService) {
+                        EnrollmentService enrollmentService,
+                        PaymentStrategyFactory paymentStrategyFactory) {
         this.orderRepository = orderRepository;
         this.orderItemRepository = orderItemRepository;
         this.cartRepository = cartRepository;
         this.courseRepository = courseRepository;
         this.enrollmentService = enrollmentService;
+        this.paymentStrategyFactory = paymentStrategyFactory;
     }
 
     public Page<Order> listByUserId(Long userId, QueryOption options) {
@@ -48,7 +53,12 @@ public class OrderService {
     }
 
     public java.util.Optional<Order> detailByUserId(Long userId, Long orderId) {
-        return orderRepository.findByIdAndUserId(orderId, userId);
+        var opt = orderRepository.findByIdAndUserId(orderId, userId);
+        opt.ifPresent(order -> {
+            var strategy = paymentStrategyFactory.resolve(order.getPaymentMethod());
+            strategy.refresh(order);
+        });
+        return opt;
     }
 
     @Transactional
@@ -91,10 +101,7 @@ public class OrderService {
 
         cartRepository.deleteByUserId(userId);
 
-        var result = new LinkedHashMap<String, Object>();
-        result.put("order", order);
-        result.put("payment_action", Map.of("method", paymentMethod.name(), "url", ""));
-        return result;
+        return finalizeCheckout(order, customerData);
     }
 
     @Transactional
@@ -125,10 +132,17 @@ public class OrderService {
 
         enrollmentService.enroll(userId, courseId, order.getId());
 
-        var result = new LinkedHashMap<String, Object>();
-        result.put("order", order);
-        result.put("payment_action", Map.of("method", paymentMethod.name(), "url", ""));
-        return result;
+        return finalizeCheckout(order, customerData);
+    }
+
+    private Map<String, Object> finalizeCheckout(Order order, CheckoutCustomerData customerData) {
+        var strategy = paymentStrategyFactory.resolve(order.getPaymentMethod());
+        var customerMap = new LinkedHashMap<String, Object>();
+        customerMap.put("full_name", customerData.getFullName());
+        customerMap.put("email", customerData.getEmail());
+        customerMap.put("phone", customerData.getPhone());
+        var paymentAction = strategy.initialize(order, customerMap);
+        return new CheckoutOrderResponse(order, paymentAction).toArray();
     }
 
     @Transactional
@@ -165,6 +179,8 @@ public class OrderService {
         var order = orderRepository.findByIdAndUserId(orderId, userId);
         if (order.isEmpty()) return false;
         var o = order.get();
+        var strategy = paymentStrategyFactory.resolve(o.getPaymentMethod());
+        strategy.cancel(o, "Cancelled by user.");
         o.setStatus(OrderStatus.cancelled);
         orderRepository.save(o);
         return true;

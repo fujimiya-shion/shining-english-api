@@ -113,12 +113,8 @@ public class UserService {
 
         var accessToken = optToken.get();
         // Mark device logged out
-        userDeviceRepository.findAll().stream()
-            .filter(d -> d.getPersonalAccessTokenId() != null && d.getPersonalAccessTokenId().equals(accessToken.getId()))
-            .findFirst().ifPresent(d -> {
-                d.setLoggedOutAt(LocalDateTime.now());
-                userDeviceRepository.save(d);
-            });
+        var now = LocalDateTime.now();
+        userDeviceRepository.markLoggedOutByTokenId(accessToken.getId(), now, now);
 
         tokenRepository.delete(accessToken);
         return true;
@@ -156,7 +152,7 @@ public class UserService {
 
         // Check token not expired (24 hours)
         if (resetRecord.getCreatedAt() != null &&
-            resetRecord.getCreatedAt().plusHours(24).isBefore(LocalDateTime.now())) {
+            resetRecord.getCreatedAt().plusMinutes(60).isBefore(LocalDateTime.now())) {
             return false;
         }
 
@@ -166,10 +162,7 @@ public class UserService {
         userRepository.save(user);
 
         // Delete all tokens for this user (like Laravel's $user->tokens()->delete())
-        tokenRepository.findAll().stream()
-            .filter(t -> t.getTokenableId().equals(user.getId())
-                && "App\\Models\\User".equals(t.getTokenableType()))
-            .forEach(tokenRepository::delete);
+        tokenRepository.deleteAllByUserId(user.getId());
 
         passwordResetTokenRepository.delete(resetRecord);
 

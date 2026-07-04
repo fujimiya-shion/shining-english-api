@@ -1,7 +1,9 @@
 package vn.edu.shiningenglish.shiningenglishapi.controller.v1.course;
 
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -49,6 +51,14 @@ public class CourseController extends BaseController {
     public ResponseEntity<Map<String, Object>> index(@RequestParam Map<String, String> params) {
         var options = QueryOption.fromArray(params, true);
         var page = courseService.getAll(options);
+        var meta = MetaPagination.fromPage(page);
+        return success("OK", page.getContent(), 200, meta.toArray());
+    }
+
+    @GetMapping("/free")
+    public ResponseEntity<Map<String, Object>> free(@RequestParam Map<String, String> params) {
+        var options = QueryOption.fromArray(params, true);
+        var page = courseService.getFree(options);
         var meta = MetaPagination.fromPage(page);
         return success("OK", page.getContent(), 200, meta.toArray());
     }

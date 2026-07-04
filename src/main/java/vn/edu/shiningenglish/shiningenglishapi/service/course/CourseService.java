@@ -45,6 +45,20 @@ public class CourseService {
         return courseRepository.findBySlugAndStatus(slug, true);
     }
 
+    public Page<Course> getFree(QueryOption options) {
+        var pageable = PageRequest.of(
+            options.getPage() != null ? options.getPage() - 1 : 0,
+            options.getPerPage()
+        );
+        Specification<Course> spec = (root, query, cb) -> {
+            var predicates = new ArrayList<jakarta.persistence.criteria.Predicate>();
+            predicates.add(cb.isTrue(root.get("status")));
+            predicates.add(cb.or(cb.isNull(root.get("price")), cb.equal(root.get("price"), 0)));
+            return cb.and(predicates.toArray(new jakarta.persistence.criteria.Predicate[0]));
+        };
+        return courseRepository.findAll(spec, pageable);
+    }
+
     public Page<Course> getAll(QueryOption options) {
         var pageable = PageRequest.of(
             options.getPage() != null ? options.getPage() - 1 : 0,
