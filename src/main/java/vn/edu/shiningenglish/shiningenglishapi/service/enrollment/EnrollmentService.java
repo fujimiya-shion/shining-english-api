@@ -9,15 +9,18 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import vn.edu.shiningenglish.shiningenglishapi.enums.OrderStatus;
 import vn.edu.shiningenglish.shiningenglishapi.event.CourseCompletedEvent;
 import vn.edu.shiningenglish.shiningenglishapi.event.LessonCompletedEvent;
 import vn.edu.shiningenglish.shiningenglishapi.model.entity.Enrollment;
 import vn.edu.shiningenglish.shiningenglishapi.model.entity.Lesson;
 import vn.edu.shiningenglish.shiningenglishapi.model.entity.LessonProgress;
+import vn.edu.shiningenglish.shiningenglishapi.model.entity.Order;
 import vn.edu.shiningenglish.shiningenglishapi.repository.course.CourseReviewRepository;
 import vn.edu.shiningenglish.shiningenglishapi.repository.EnrollmentRepository;
 import vn.edu.shiningenglish.shiningenglishapi.repository.lesson.LessonProgressRepository;
 import vn.edu.shiningenglish.shiningenglishapi.repository.lesson.LessonRepository;
+import vn.edu.shiningenglish.shiningenglishapi.repository.order.OrderRepository;
 
 @Service
 public class EnrollmentService {
@@ -26,16 +29,19 @@ public class EnrollmentService {
     private final LessonRepository lessonRepository;
     private final LessonProgressRepository lessonProgressRepository;
     private final CourseReviewRepository courseReviewRepository;
+    private final OrderRepository orderRepository;
     private final ApplicationEventPublisher eventPublisher;
 
     public EnrollmentService(EnrollmentRepository enrollmentRepository, LessonRepository lessonRepository,
                              LessonProgressRepository lessonProgressRepository,
                              CourseReviewRepository courseReviewRepository,
+                             OrderRepository orderRepository,
                              ApplicationEventPublisher eventPublisher) {
         this.enrollmentRepository = enrollmentRepository;
         this.lessonRepository = lessonRepository;
         this.lessonProgressRepository = lessonProgressRepository;
         this.courseReviewRepository = courseReviewRepository;
+        this.orderRepository = orderRepository;
         this.eventPublisher = eventPublisher;
     }
 
@@ -54,13 +60,26 @@ public class EnrollmentService {
     }
 
     public boolean isEnrolled(Long userId, Long courseId) {
-        return enrollmentRepository.findByUserIdAndCourseId(userId, courseId)
-            .map(e -> e.getOrderId() == null || true) // simplified
+        var enrollment = enrollmentRepository.findByUserIdAndCourseId(userId, courseId);
+        if (enrollment.isEmpty()) return false;
+
+        var e = enrollment.get();
+        // No order_id = free course = always enrolled
+        if (e.getOrderId() == null) return true;
+
+        // Has order_id → check if order is paid
+        return orderRepository.findById(e.getOrderId())
+            .map(o -> o.getStatus() == OrderStatus.paid)
             .orElse(false);
     }
 
     public boolean hasPendingEnrollment(Long userId, Long courseId) {
-        return false; // simplified
+        var enrollment = enrollmentRepository.findByUserIdAndCourseId(userId, courseId);
+        if (enrollment.isEmpty() || enrollment.get().getOrderId() == null) return false;
+
+        return orderRepository.findById(enrollment.get().getOrderId())
+            .map(o -> o.getStatus() == OrderStatus.pending)
+            .orElse(false);
     }
 
     public Map<String, Object> getLearningProgress(Long userId, Long courseId) {

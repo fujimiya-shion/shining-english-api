@@ -95,7 +95,7 @@ public class CourseController extends BaseController {
         var data = new LinkedHashMap<String, Object>();
         data.put("course_id", id);
         data.put("enrolled", isEnrolled);
-        data.put("pending_access", false);
+        data.put("pending_access", enrollmentService.hasPendingEnrollment(user.getId(), id));
         data.put("in_cart", cartService.hasCourse(user.getId(), id));
         data.put("is_free_course", isFree);
         data.put("can_enroll_free", isFree && !isEnrolled);
