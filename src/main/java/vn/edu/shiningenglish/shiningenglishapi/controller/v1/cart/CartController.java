@@ -44,6 +44,14 @@ public class CartController extends BaseController {
         return success(cartService.countByUserId(user.getId()));
     }
 
+    @DeleteMapping("/items/{courseId}")
+    public ResponseEntity<Map<String, Object>> removeItem(Authentication auth, @PathVariable Long courseId) {
+        var user = (User) auth.getPrincipal();
+        var removed = cartService.removeByCourseId(user.getId(), courseId);
+        if (!removed) return notfound("Cart item not found");
+        return deleted("Course removed from cart");
+    }
+
     @DeleteMapping("/clear")
     public ResponseEntity<Map<String, Object>> clear(Authentication auth) {
         var user = (User) auth.getPrincipal();

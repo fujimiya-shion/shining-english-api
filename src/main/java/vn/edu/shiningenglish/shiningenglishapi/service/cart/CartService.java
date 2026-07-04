@@ -57,4 +57,12 @@ public class CartService {
     public boolean hasCourse(Long userId, Long courseId) {
         return cartRepository.existsByUserIdAndCourseId(userId, courseId);
     }
+
+    @Transactional
+    public boolean removeByCourseId(Long userId, Long courseId) {
+        var cart = cartRepository.findByUserIdAndCourseId(userId, courseId);
+        if (cart.isEmpty()) return false;
+        cartRepository.delete(cart.get());
+        return true;
+    }
 }
