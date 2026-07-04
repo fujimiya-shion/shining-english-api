@@ -3,6 +3,8 @@ package vn.edu.shiningenglish.shiningenglishapi.service.order;
 import org.springframework.data.domain.Page;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import vn.edu.shiningenglish.shiningenglishapi.enums.OrderStatus;
 import vn.edu.shiningenglish.shiningenglishapi.enums.PaymentMethod;
 import vn.edu.shiningenglish.shiningenglishapi.model.dto.transaction.checkout.CheckoutOrderResponse;
@@ -18,6 +20,7 @@ import vn.edu.shiningenglish.shiningenglishapi.valueobject.CheckoutCustomerData;
 import vn.edu.shiningenglish.shiningenglishapi.valueobject.QueryOption;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -55,8 +58,13 @@ public class OrderService {
     public java.util.Optional<Order> detailByUserId(Long userId, Long orderId) {
         var opt = orderRepository.findByIdAndUserId(orderId, userId);
         opt.ifPresent(order -> {
-            var strategy = paymentStrategyFactory.resolve(order.getPaymentMethod());
-            strategy.refresh(order);
+            var strategy = paymentStrategyFactory.make(order.getPaymentMethod());
+            var refreshed = strategy.refresh(order);
+            order.setStatus(refreshed.getStatus());
+            order.setPaymentMetadata(refreshed.getPaymentMetadata());
+            order.setPaymentReference(refreshed.getPaymentReference());
+            order.setPaymentCheckoutUrl(refreshed.getPaymentCheckoutUrl());
+            order.setPaidAt(refreshed.getPaidAt());
         });
         return opt;
     }
@@ -68,9 +76,11 @@ public class OrderService {
             throw new RuntimeException("Cart is empty");
         }
 
+        var courseIds = new ArrayList<Long>();
         var total = items.stream()
             .mapToInt(item -> {
                 var course = courseRepository.findById(item.getCourseId());
+                courseIds.add(item.getCourseId());
                 return course.map(c -> (c.getPrice() != null ? c.getPrice() : 0) * (item.getQuantity() != null ? item.getQuantity() : 1)).orElse(0);
             })
             .sum();
@@ -85,6 +95,7 @@ public class OrderService {
         if (initialStatus == OrderStatus.paid) {
             order.setPaidAt(LocalDateTime.now());
         }
+        var savedOrderId = order.getId();
         order = orderRepository.save(order);
 
         for (var item : items) {
@@ -95,11 +106,18 @@ public class OrderService {
             oi.setQuantity(item.getQuantity() != null ? item.getQuantity() : 1);
             oi.setPrice(course.map(c -> c.getPrice() != null ? c.getPrice() : 0).orElse(0));
             orderItemRepository.save(oi);
-
-            enrollmentService.enroll(userId, item.getCourseId(), order.getId());
         }
 
         cartRepository.deleteByUserId(userId);
+
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                for (Long courseId : courseIds) {
+                    enrollmentService.enroll(userId, courseId, savedOrderId);
+                }
+            }
+        });
 
         return finalizeCheckout(order, customerData);
     }
@@ -121,6 +139,7 @@ public class OrderService {
         if (initialStatus == OrderStatus.paid) {
             order.setPaidAt(LocalDateTime.now());
         }
+        var savedOrderId = order.getId();
         order = orderRepository.save(order);
 
         var oi = new OrderItem();
@@ -130,19 +149,27 @@ public class OrderService {
         oi.setPrice(course.getPrice() != null ? course.getPrice() : 0);
         orderItemRepository.save(oi);
 
-        enrollmentService.enroll(userId, courseId, order.getId());
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                enrollmentService.enroll(userId, courseId, savedOrderId);
+            }
+        });
 
         return finalizeCheckout(order, customerData);
     }
 
     private Map<String, Object> finalizeCheckout(Order order, CheckoutCustomerData customerData) {
-        var strategy = paymentStrategyFactory.resolve(order.getPaymentMethod());
+        var strategy = paymentStrategyFactory.make(order.getPaymentMethod());
         var customerMap = new LinkedHashMap<String, Object>();
-        customerMap.put("full_name", customerData.getFullName());
+        customerMap.put("buyer_name", customerData.getFullName());
+        customerMap.put("buyer_email", customerData.getEmail());
+        customerMap.put("buyer_phone", customerData.getPhone());
+        customerMap.put("fullName", customerData.getFullName());
         customerMap.put("email", customerData.getEmail());
         customerMap.put("phone", customerData.getPhone());
-        var paymentAction = strategy.initialize(order, customerMap);
-        return new CheckoutOrderResponse(order, paymentAction).toArray();
+        var result = strategy.initialize(order, customerMap);
+        return new CheckoutOrderResponse(order, result.toCheckoutAction()).toArray();
     }
 
     @Transactional
@@ -161,6 +188,7 @@ public class OrderService {
         order.setPaymentMethod(PaymentMethod.star);
         order.setPlacedAt(LocalDateTime.now());
         order.setPaidAt(LocalDateTime.now());
+        var savedOrderId = order.getId();
         order = orderRepository.save(order);
 
         var oi = new OrderItem();
@@ -170,7 +198,13 @@ public class OrderService {
         oi.setPrice(0);
         orderItemRepository.save(oi);
 
-        enrollmentService.enroll(userId, courseId, order.getId());
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                enrollmentService.enroll(userId, courseId, savedOrderId);
+            }
+        });
+
         return order;
     }
 
@@ -179,7 +213,7 @@ public class OrderService {
         var order = orderRepository.findByIdAndUserId(orderId, userId);
         if (order.isEmpty()) return false;
         var o = order.get();
-        var strategy = paymentStrategyFactory.resolve(o.getPaymentMethod());
+        var strategy = paymentStrategyFactory.make(o.getPaymentMethod());
         strategy.cancel(o, "Cancelled by user.");
         o.setStatus(OrderStatus.cancelled);
         orderRepository.save(o);

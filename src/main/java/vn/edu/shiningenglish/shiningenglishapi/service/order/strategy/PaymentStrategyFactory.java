@@ -1,22 +1,24 @@
 package vn.edu.shiningenglish.shiningenglishapi.service.order.strategy;
 
+import org.springframework.context.ApplicationContext;
 import org.springframework.stereotype.Component;
 import vn.edu.shiningenglish.shiningenglishapi.enums.PaymentMethod;
-import java.util.EnumMap;
 import java.util.Map;
 
 @Component
 public class PaymentStrategyFactory {
 
-    private final Map<PaymentMethod, PaymentStrategy> strategies = new EnumMap<>(PaymentMethod.class);
+    private final Map<PaymentMethod, PaymentStrategy> strategies;
 
-    public PaymentStrategyFactory(CodPaymentStrategy cod, PayOsPaymentStrategy payos, StarPaymentStrategy star) {
-        strategies.put(PaymentMethod.cod, cod);
-        strategies.put(PaymentMethod.payos, payos);
-        strategies.put(PaymentMethod.star, star);
+    public PaymentStrategyFactory(ApplicationContext ctx) {
+        this.strategies = Map.of(
+            PaymentMethod.cod, ctx.getBean(CodPaymentStrategy.class),
+            PaymentMethod.payos, ctx.getBean(PayosPaymentStrategy.class),
+            PaymentMethod.star, ctx.getBean(StarPaymentStrategy.class)
+        );
     }
 
-    public PaymentStrategy resolve(PaymentMethod method) {
+    public PaymentStrategy make(PaymentMethod method) {
         var strategy = strategies.get(method);
         if (strategy == null) throw new IllegalArgumentException("Unsupported payment method: " + method);
         return strategy;

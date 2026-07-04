@@ -1,22 +1,27 @@
 package vn.edu.shiningenglish.shiningenglishapi.service.order.strategy;
 
 import org.springframework.stereotype.Component;
+import vn.edu.shiningenglish.shiningenglishapi.enums.PaymentMethod;
 import vn.edu.shiningenglish.shiningenglishapi.model.entity.Order;
+
 import java.util.Map;
 
 @Component
 public class StarPaymentStrategy implements PaymentStrategy {
     @Override
-    public Map<String, Object> initialize(Order order, Map<String, Object> customerData) {
-        return Map.of("method", "star", "url", "");
+    public PaymentMethod method() { return PaymentMethod.star; }
+
+    @Override
+    public PaymentInitializationResult initialize(Order order, Map<String, Object> customerData) {
+        return PaymentInitializationResult.none();
     }
 
     @Override
-    public void cancel(Order order, String reason) {
-    }
+    public Order refresh(Order order) { return order; }
 
     @Override
-    public Map<String, Object> refresh(Order order) {
-        return Map.of("method", "star", "status", order.getStatus().name());
-    }
+    public Order cancel(Order order, String reason) { return order; }
+
+    @Override
+    public Order handleWebhook(Map<String, Object> payload) { return null; }
 }
