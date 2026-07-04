@@ -100,9 +100,9 @@ public class HomeController extends BaseController {
                 Map.of("title", "Khám phá khóa học", "action", "/courses", "type", "SECONDARY")
             ),
             "banner_highlights", List.of(
-                Map.of("text", "Xây dựng sự tự tin từ gốc.", "icon_path", (String) null, "icon_type", "book-open"),
-                Map.of("text", "30 phút mỗi ngày.", "icon_path", (String) null, "icon_type", "clock"),
-                Map.of("text", "Để bạn dùng được tiếng Anh trong đời sống.", "icon_path", (String) null, "icon_type", "award")
+                mapOf("text", "Xây dựng sự tự tin từ gốc.", "icon_path", null, "icon_type", "book-open"),
+                mapOf("text", "30 phút mỗi ngày.", "icon_path", null, "icon_type", "clock"),
+                mapOf("text", "Để bạn dùng được tiếng Anh trong đời sống.", "icon_path", null, "icon_type", "award")
             )
         ));
     }
@@ -113,29 +113,29 @@ public class HomeController extends BaseController {
         var learnerCount = (String) metrics.get("learner_count");
         var averageRating = (String) metrics.get("average_rating");
 
-        return makePayload("hero", Map.of(
-            "title", (String) null,
-            "html_title", "More Than English.<br><span>Find Your Shine.</span>",
-            "description", "Thay đổi cách bạn nhìn về tiếng Anh — và về chính mình.",
-            "actions", List.of(
-                Map.of("title", "Trải nghiệm miễn phí", "action", "/blogs", "type", "primary"),
-                Map.of("title", "Khám phá khóa học", "action", "/courses", "type", "secondary")
-            ),
-            "ctas", List.of(
-                Map.of("title", learnerCount, "description", "Người Học Đã Theo"),
-                Map.of("title", averageRating, "description", "Đánh Giá Thật")
-            ),
-            "image", "/images/home/hero.png",
-            "image_tags", List.of(
-                Map.of("text", "15 phút/bài", "hex_bg_color", "#FFFFFF", "hex_text_color", "#172B4D"),
-                Map.of("text", "Bài mới hằng tuần", "hex_bg_color", "#F5A400", "hex_text_color", "#FFFFFF")
-            ),
-            "image_cta", Map.of(
-                "icon", "rocket",
-                "title", "Học trực tuyến cùng người dạy",
-                "description", "Mình trực tiếp phản hồi & cập nhật bài mới"
-            )
+        var heroData = new LinkedHashMap<String, Object>();
+        heroData.put("title", null);
+        heroData.put("html_title", "More Than English.<br><span>Find Your Shine.</span>");
+        heroData.put("description", "Thay đổi cách bạn nhìn về tiếng Anh — và về chính mình.");
+        heroData.put("actions", List.of(
+            Map.of("title", "Trải nghiệm miễn phí", "action", "/blogs", "type", "primary"),
+            Map.of("title", "Khám phá khóa học", "action", "/courses", "type", "secondary")
         ));
+        heroData.put("ctas", List.of(
+            Map.of("title", learnerCount, "description", "Người Học Đã Theo"),
+            Map.of("title", averageRating, "description", "Đánh Giá Thật")
+        ));
+        heroData.put("image", "/images/home/hero.png");
+        heroData.put("image_tags", List.of(
+            Map.of("text", "15 phút/bài", "hex_bg_color", "#FFFFFF", "hex_text_color", "#172B4D"),
+            Map.of("text", "Bài mới hằng tuần", "hex_bg_color", "#F5A400", "hex_text_color", "#FFFFFF")
+        ));
+        heroData.put("image_cta", Map.of(
+            "icon", "rocket",
+            "title", "Học trực tuyến cùng người dạy",
+            "description", "Mình trực tiếp phản hồi & cập nhật bài mới"
+        ));
+        return makePayload("hero", heroData);
     }
 
     // ─── Courses ───────────────────────────────────────────────────────────
@@ -174,12 +174,12 @@ public class HomeController extends BaseController {
             // category
             if (c.getCategoryId() != null) {
                 categoryRepository.findById(c.getCategoryId())
-                    .ifPresent(cat -> m.put("category", Map.of("id", cat.getId(), "name", cat.getName())));
+                    .ifPresent(cat -> m.put("category", mapOf("id", cat.getId(), "name", cat.getName())));
             }
             // level
             if (c.getLevelId() != null) {
                 levelRepository.findById(c.getLevelId())
-                    .ifPresent(lvl -> m.put("level", Map.of("id", lvl.getId(), "name", lvl.getName())));
+                    .ifPresent(lvl -> m.put("level", mapOf("id", lvl.getId(), "name", lvl.getName())));
             }
             // card metrics
             var lessons = lessonRepository.findByCourseIdOrderByGroupOrderAscLessonOrderAscIdAsc(c.getId());
@@ -206,18 +206,18 @@ public class HomeController extends BaseController {
 
     private Map<String, Object> makeFeaturePayload() {
         var items = List.of(
-            Map.of("title", "Lộ trình cá nhân", "description", "Từng bài được sắp xếp rõ ràng để bạn học đều và chắc",
-                   "icon_path", (String) null, "icon_type", "book-open", "badge_text", "Nổi bật", "tag_text", "Dễ theo – thực tế"),
-            Map.of("title", "Do một người hướng dẫn", "description", "Tôi tự quay, tự dạy và theo sát từng nội dung học",
-                   "icon_path", (String) null, "icon_type", "users", "badge_text", "Nổi bật", "tag_text", "Dễ theo – thực tế"),
-            Map.of("title", "Bài tập thực chiến", "description", "Bài luyện nói – viết – phản xạ được cập nhật thường xuyên",
-                   "icon_path", (String) null, "icon_type", "check-circle", "badge_text", "Nổi bật", "tag_text", "Dễ theo – thực tế"),
-            Map.of("title", "Học theo tốc độ của bạn", "description", "Xem video bất cứ lúc nào, tua lại phần khó và học chậm",
-                   "icon_path", (String) null, "icon_type", "clock", "badge_text", "Nổi bật", "tag_text", "Dễ theo – thực tế"),
-            Map.of("title", "Tiến bộ đo được", "description", "Theo dõi điểm số và kỹ năng bạn cải thiện mỗi tuần",
-                   "icon_path", (String) null, "icon_type", "award", "badge_text", "Nổi bật", "tag_text", "Dễ theo – thực tế"),
-            Map.of("title", "Hỗ trợ trực tiếp", "description", "Nhắn mình bất cứ lúc nào khi cần gỡ vướng bài học",
-                   "icon_path", (String) null, "icon_type", "message-circle", "badge_text", "Nổi bật", "tag_text", "Dễ theo – thực tế")
+            mapOf("title", "Lộ trình cá nhân", "description", "Từng bài được sắp xếp rõ ràng để bạn học đều và chắc",
+                   "icon_path", null, "icon_type", "book-open", "badge_text", "Nổi bật", "tag_text", "Dễ theo – thực tế"),
+            mapOf("title", "Do một người hướng dẫn", "description", "Tôi tự quay, tự dạy và theo sát từng nội dung học",
+                   "icon_path", null, "icon_type", "users", "badge_text", "Nổi bật", "tag_text", "Dễ theo – thực tế"),
+            mapOf("title", "Bài tập thực chiến", "description", "Bài luyện nói – viết – phản xạ được cập nhật thường xuyên",
+                   "icon_path", null, "icon_type", "check-circle", "badge_text", "Nổi bật", "tag_text", "Dễ theo – thực tế"),
+            mapOf("title", "Học theo tốc độ của bạn", "description", "Xem video bất cứ lúc nào, tua lại phần khó và học chậm",
+                   "icon_path", null, "icon_type", "clock", "badge_text", "Nổi bật", "tag_text", "Dễ theo – thực tế"),
+            mapOf("title", "Tiến bộ đo được", "description", "Theo dõi điểm số và kỹ năng bạn cải thiện mỗi tuần",
+                   "icon_path", null, "icon_type", "award", "badge_text", "Nổi bật", "tag_text", "Dễ theo – thực tế"),
+            mapOf("title", "Hỗ trợ trực tiếp", "description", "Nhắn mình bất cứ lúc nào khi cần gỡ vướng bài học",
+                   "icon_path", null, "icon_type", "message-circle", "badge_text", "Nổi bật", "tag_text", "Dễ theo – thực tế")
         );
         return makePayload("feature", Map.of(
             "eyebrow", "Học theo phong cách dễ hiểu",
@@ -231,18 +231,18 @@ public class HomeController extends BaseController {
 
     private Map<String, Object> makeProcessPayload() {
         var steps = List.of(
-            Map.of("label", "Bước 1", "title", "Chọn Khóa Học",
+            mapOf("label", "Bước 1", "title", "Chọn Khóa Học",
                    "description", "Lựa chọn khóa học phù hợp với mục tiêu và trình độ của bạn",
-                   "icon_path", (String) null, "icon_type", "book-open"),
-            Map.of("label", "Bước 2", "title", "Học & Thực Hành",
+                   "icon_path", null, "icon_type", "book-open"),
+            mapOf("label", "Bước 2", "title", "Học & Thực Hành",
                    "description", "Xem video, làm bài tập và luyện nói theo bài",
-                   "icon_path", (String) null, "icon_type", "check-circle"),
-            Map.of("label", "Bước 3", "title", "Nhận Phản Hồi",
+                   "icon_path", null, "icon_type", "check-circle"),
+            mapOf("label", "Bước 3", "title", "Nhận Phản Hồi",
                    "description", "Gửi bài, mình xem và góp ý cách học nhanh hơn",
-                   "icon_path", (String) null, "icon_type", "message-circle"),
-            Map.of("label", "Bước 4", "title", "Ghi Nhận Tiến Bộ",
+                   "icon_path", null, "icon_type", "message-circle"),
+            mapOf("label", "Bước 4", "title", "Ghi Nhận Tiến Bộ",
                    "description", "Theo dõi kỹ năng bạn cải thiện mỗi tuần",
-                   "icon_path", (String) null, "icon_type", "award")
+                   "icon_path", null, "icon_type", "award")
         );
 
         return makePayload("process", Map.of(
@@ -269,10 +269,10 @@ public class HomeController extends BaseController {
                 m.put("content", r.getContent());
                 // Load user
                 userRepository.findById(r.getUserId()).ifPresent(u ->
-                    m.put("user", Map.of("id", u.getId(), "name", u.getName(), "avatar", u.getAvatar())));
+                    m.put("user", mapOf("id", u.getId(), "name", u.getName(), "avatar", u.getAvatar())));
                 // Load course
                 courseRepository.findById(r.getCourseId()).ifPresent(c ->
-                    m.put("course", Map.of("id", c.getId(), "name", c.getName())));
+                    m.put("course", mapOf("id", c.getId(), "name", c.getName())));
                 return m;
             })
             .collect(Collectors.toList());
@@ -369,6 +369,17 @@ public class HomeController extends BaseController {
         } catch (NoSuchAlgorithmException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    // ─── Map helper (supports null values, unlike Map.of) ────────────────
+
+    @SuppressWarnings("unchecked")
+    private static Map<String, Object> mapOf(Object... entries) {
+        var map = new LinkedHashMap<String, Object>();
+        for (int i = 0; i < entries.length; i += 2) {
+            map.put((String) entries[i], entries[i + 1]);
+        }
+        return map;
     }
 
     // ─── Formatters ───────────────────────────────────────────────────────
