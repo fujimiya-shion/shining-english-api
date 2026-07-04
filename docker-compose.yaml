@@ -1,0 +1,46 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: docker/java21/Dockerfile
+    working_dir: /workspace
+    env_file:
+      - .env
+    environment:
+      SPRING_DOCKER_COMPOSE_ENABLED: "false"
+      SPRING_DEVTOOLS_RESTART_ENABLED: "true"
+      SPRING_DEVTOOLS_RESTART_POLL_INTERVAL: 2s
+      SPRING_DEVTOOLS_RESTART_QUIET_PERIOD: 1s
+    command: bash docker/java21/start-dev.sh
+    ports:
+      - "${APP_PORT:-8080}:8080"
+    volumes:
+      - .:/workspace:z
+      - gradle-cache:/tmp/gradle
+    depends_on:
+      mysql:
+        condition: service_healthy
+    stdin_open: true
+    tty: true
+
+  mysql:
+    image: mysql:8.4
+    environment:
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-shining_english}
+      MYSQL_USER: ${MYSQL_USER:-shining}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-135792468jK}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-135792468jK}
+    ports:
+      - "${MYSQL_EXPOSE_PORT:-3306}:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-p${MYSQL_ROOT_PASSWORD:-135792468jK}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 20s
+
+volumes:
+  gradle-cache:
+  mysql-data:

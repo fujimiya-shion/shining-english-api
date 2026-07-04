@@ -1,0 +1,13 @@
+CREATE TABLE personal_access_tokens (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    tokenable_type VARCHAR(255) NOT NULL,
+    tokenable_id BIGINT UNSIGNED NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    token VARCHAR(64) NOT NULL UNIQUE,
+    abilities TEXT DEFAULT NULL,
+    last_used_at TIMESTAMP NULL DEFAULT NULL,
+    expires_at TIMESTAMP NULL DEFAULT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_tokenable (tokenable_type, tokenable_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

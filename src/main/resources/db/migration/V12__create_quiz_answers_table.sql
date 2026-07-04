@@ -1,0 +1,10 @@
+CREATE TABLE quiz_answers (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    quiz_question_id BIGINT UNSIGNED NOT NULL,
+    content TEXT NOT NULL,
+    is_correct TINYINT(1) DEFAULT 0,
+    deleted_at TIMESTAMP NULL DEFAULT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_quiz_answers_question (quiz_question_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

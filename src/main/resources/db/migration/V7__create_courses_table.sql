@@ -1,0 +1,21 @@
+CREATE TABLE courses (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    slug VARCHAR(255) NOT NULL,
+    price INT NOT NULL DEFAULT 0,
+    status TINYINT(1) DEFAULT 1,
+    thumbnail VARCHAR(255) DEFAULT NULL,
+    description LONGTEXT DEFAULT NULL,
+    rating DOUBLE DEFAULT NULL,
+    learned INT DEFAULT NULL,
+    allow_star_payment TINYINT(1) DEFAULT 0,
+    star_price INT DEFAULT 0,
+    category_id BIGINT UNSIGNED DEFAULT NULL,
+    level_id BIGINT UNSIGNED DEFAULT NULL,
+    deleted_at TIMESTAMP NULL DEFAULT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_courses_category (category_id),
+    INDEX idx_courses_level (level_id),
+    FULLTEXT INDEX ft_courses_name_slug (name, slug)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
