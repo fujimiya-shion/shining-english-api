@@ -44,3 +44,6 @@ mysql-data/
 
 ### Generated docs ###
 *.docx
+
+### macOS ###
+.DS_Store
