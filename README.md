@@ -6,262 +6,201 @@ Spring Boot REST API cho hệ thống Shining English — học tiếng Anh onli
 
 ## Kiến Trúc Tổng Quan
 
+```mermaid
+flowchart TB
+    subgraph INTERNET["Internet / Người Dùng"]
+        User([Browser User])
+    end
+
+    subgraph LB["Cloud Load Balancer"]
+        ALB[HAProxy / Nginx / AWS ALB]
+    end
+
+    subgraph FE["Frontend - NextJS"]
+        FE1["NextJS Replica #1"]
+        FE2["NextJS Replica #2"]
+        FEN["NextJS Replica #N"]
+    end
+
+    subgraph GW["API Gateway / Reverse Proxy (Nginx)"]
+        direction TB
+        SPR["/api/v1/* → Spring Boot"]
+        CMS["/cms/* → Laravel PHP"]
+        STG["/storage/* → MinIO / S3"]
+    end
+
+    subgraph BE["Backend Services"]
+        SB[("Spring Boot API<br/>(2+ replicas)")]
+        LARAVEL[("Laravel PHP CMS<br/>(1+ replica)")]
+    end
+
+    subgraph DB["Database Layer"]
+        MYSQL_PRIMARY[("MySQL 8.4<br/>Primary")]
+        MYSQL_REPLICA[("MySQL 8.4<br/>Replica / Read-Only)")]
+    end
+
+    subgraph STORAGE["Object Storage"]
+        MINIO[("MinIO / S3")]
+    end
+
+    subgraph CACHE["Cache / Queue"]
+        REDIS[("Redis")]
+    end
+
+    User --> ALB
+    ALB --> FE1 & FE2 & FEN
+    FE1 & FE2 & FEN -- /api/proxy/* --> GW
+    GW --> SPR --> SB
+    GW --> CMS --> LARAVEL
+    GW --> STG --> MINIO
+    SB & LARAVEL --> MYSQL_PRIMARY
+    SB --> MYSQL_REPLICA
+    SB & LARAVEL --> MINIO
+    SB & LARAVEL --> REDIS
+    MYSQL_PRIMARY -.-> MYSQL_REPLICA
 ```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                           INTERNET / NGƯỜI DÙNG                            │
-└────────────────────────┬────────────────────────────────────────────────────┘
-                         │
-                         ▼
-┌────────────────────────────────────────────────────────────────────────────┐
-│                            CLOUD LOAD BALANCER                             │
-│                         (HAProxy / Nginx / AWS ALB)                        │
-└────┬──────────────────────┬──────────────────────┬─────────────────────────┘
-     │                      │                      │
-     ▼                      ▼                      ▼
-┌──────────┐        ┌──────────┐            ┌──────────┐
-│  NextJS  │        │  NextJS  │    ...      │  NextJS  │  ← Frontend
-│  (FE #1) │        │  (FE #2) │            │  (FE #N) │     (2+ replicas)
-└────┬─────┘        └────┬─────┘            └────┬─────┘
-     │                   │                       │
-     │  /api/proxy/*     │                       │
-     └─────────┬─────────┘                       │
-               │                                 │
-        ┌──────┴──────┐                          │
-        │  INTERNAL    │                          │
-        │  NETWORK     │                          │
-        └──────┬──────┘                          │
-               │                                  │
-               ▼                                  │
-┌──────────────────────────────┐                  │
-│     API GATEWAY / REVERSE    │                  │
-│         PROXY (Nginx)        │                  │
-│                              │                  │
-│  /api/v1/*  →  Spring Boot   │                  │
-│  /cms/*     →  Laravel PHP   │                  │
-│  /storage/* →  MinIO / S3    │                  │
-└────┬──────────────────┬──────┘                  │
-     │                  │                         │
-     ▼                  ▼                         │
-┌──────────┐     ┌──────────┐                     │
-│ Spring   │     │ Laravel  │                     │
-│ Boot API │     │ PHP CMS  │                     │
-│ (2+ rep) │     │ (1+ rep) │                     │
-└────┬─────┘     └────┬─────┘                     │
-     │                │                           │
-     ▼                ▼                           │
-┌──────────────────────────────────────┐          │
-│           MySQL 8.4 (Primary)        │          │
-│    ┌───────────────────────────┐     │          │
-│    │  shining_english          │     │          │
-│    │  ┌─ courses              │     │          │
-│    │  ├─ lessons              │     │          │
-│    │  ├─ orders               │     │          │
-│    │  ├─ users                │     │          │
-│    │  └─ ... (35+ tables)     │     │          │
-│    └───────────────────────────┘     │          │
-│                                      │          │
-│    MySQL 8.4 (Replica / Read-Only)   │          │
-└──────────────────────────────────────┘          │
-                         │                        │
-                         ▼                        │
-┌──────────────────────────────────────┐          │
-│  Object Storage (MinIO / S3)         │          │
-│  ┌─ uploads/avatars/*               │          │
-│  ├─ uploads/courses/*               │          │
-│  ├─ uploads/blogs/*                 │          │
-│  └─ uploads/documents/*             │          │
-└──────────────────────────────────────┘          │
-                                                  │
-┌──────────────────────────────────────┐          │
-│  Cache / Queue (Redis)               │          │
-│  ┌─ Session                         │          │
-│  ├─ Rate Limiting                   │          │
-│  └─ Queue Jobs (async email, etc.)  │          │
-└──────────────────────────────────────┘          │
+
+---
+
+## Kiến Trúc Module (Spring Boot)
+
+```mermaid
+flowchart LR
+    subgraph Controller["controller/v1/"]
+        U["user/<br/>Auth, User, Home"]
+        C["course/<br/>Course"]
+        L["lesson/<br/>Lesson, Note"]
+        B["blog/<br/>Blog"]
+        CA["cart/<br/>Cart"]
+        T["transaction/<br/>Order, Payment"]
+        Q["quiz/<br/>Attempt"]
+        CI["city/<br/>City"]
+        CO["contact/<br/>Contact"]
+        D["dashboard/<br/>Dashboard"]
+        DE["developer/<br/>Developer"]
+        S["star/<br/>Star"]
+    end
+
+    subgraph Service["service/"]
+        SU["user/"]
+        SC["course/"]
+        SL["lesson/"]
+        SCA["cart/"]
+        SO["order/"]
+        SST["star/"]
+        SQ["quiz/"]
+        SD["dashboard/"]
+        SDE["developer/"]
+        SE["enrollment/"]
+    end
+
+    subgraph Repository["repository/"]
+        RU["user/"]
+        RC["course/"]
+        RL["lesson/"]
+        RQ["quiz/"]
+        RCA["cart/"]
+        RO["order/"]
+        RS["star/"]
+        RB["blog/"]
+    end
+
+    U & C & L & B & CA & T & Q & CI & CO & D & DE & S --> Service
+    Service --> Repository
+    Repository --> DB[(MySQL)]
 ```
 
 ---
 
 ## Luồng Gọi API
 
-### 1. Luồng Request Từ Frontend
+### 1. Request từ Frontend (Proxy Flow)
 
-```
-┌────────┐     ┌────────┐     ┌──────────┐     ┌──────────┐
-│  User  │────▶│ NextJS │────▶│  Nginx   │────▶│  Spring  │
-│Browser │◀────│  FE    │◀────│  Proxy   │◀────│   Boot   │
-└────────┘     └────────┘     └──────────┘     └──────────┘
-                    │                                │
-                    │  Gọi backend qua                │
-                    │  /api/proxy/...                 │
-                    │  + attach access token          │
-                    │  + attach user token (cookie)   │
-                    │                                │
-                    │  Server-side render             │
-                    │  (SSR) cho SEO                  │
-```
+```mermaid
+sequenceDiagram
+    participant Browser as Browser User
+    participant NextJS as NextJS (FE)
+    participant Spring as Spring Boot API
 
-**Chi tiết proxy flow (NextJS → Spring Boot):**
+    Browser->>NextJS: GET /courses
+    Note over NextJS: Check cached developer access token
 
-```
-Browser                          NextJS                              Spring Boot
-  │                                │                                   │
-  │  GET /courses                  │                                   │
-  │───────────────────────────────▶│                                   │
-  │                                │                                   │
-  │                                │  POST /api/v1/access-token        │
-  │                                │  (if no cached developer token)   │
-  │                                │──────────────────────────────────▶│
-  │                                │  { access_token: "dev-xxx" }     │
-  │                                │◀──────────────────────────────────│
-  │                                │                                   │
-  │                                │  GET /api/v1/courses              │
-  │                                │  Authorization: Bearer dev-xxx    │
-  │                                │  User-Authorization: user-xxx     │
-  │                                │──────────────────────────────────▶│
-  │                                │  [courses list]                   │
-  │                                │◀──────────────────────────────────│
-  │  SSR HTML                      │                                   │
-  │◀───────────────────────────────│                                   │
+    alt No cached token
+        NextJS->>Spring: POST /api/v1/access-token<br/>{email, password}
+        Spring-->>NextJS: { access_token: "dev-xxx" }
+        Note over NextJS: Cache token
+    end
+
+    NextJS->>Spring: GET /api/v1/courses<br/>Authorization: Bearer dev-xxx<br/>User-Authorization: user-xxx (from cookie)
+    Spring-->>NextJS: [courses list]
+    NextJS-->>Browser: SSR HTML
 ```
 
-### 2. Luồng Authentication
+### 2. Authentication Flow
 
-```
-─── Đăng ký / Đăng nhập ─────────────────────────────────────────
+```mermaid
+sequenceDiagram
+    participant User as User
+    participant NextJS as NextJS
+    participant Spring as Spring Boot
+    participant DB as MySQL
 
-  ┌──────┐     ┌──────────┐     ┌──────────┐     ┌────────┐
-  │ User │────▶│  NextJS  │────▶│  Spring  │────▶│MySQL DB│
-  │      │◀────│   Proxy  │◀────│   Boot   │◀────│        │
-  └──────┘     └──────────┘     └──────────┘     └────────┘
-  POST /auth/register              │
-  POST /auth/login                 ├─ BCrypt password → users
-  POST /auth/third-party-login     ├─ SHA-256(token) → personal_access_tokens
-                                   ├─ UUID token → response
-                                   ├─ Dispatch UserRegisteredEvent
-                                   │   ├─ InitUserStarListener (async)
-                                   │   │   └─ StarService.addStarByUserId(15)
-                                   │   └─ SendEmailVerificationListener (async)
-                                   │       └─ Log only (mail chưa config)
-                                   └─ LoginResponse { token, user }
+    User->>NextJS: POST /auth/register<br/>or /auth/login
+    NextJS->>Spring: Forward request
+    Spring->>DB: BCrypt(password) → users
+    Spring->>DB: SHA-256(token) → personal_access_tokens
+    Spring-->>NextJS: LoginResponse { token, user }
 
-─── Xác thực request ─────────────────────────────────────────────
+    par Async Events
+        Spring->>Spring: Dispatch UserRegisteredEvent
+        Spring-->>Spring: InitUserStarListener<br/>StarService.addStarByUserId(15)
+        Spring-->>Spring: SendEmailVerificationListener<br/>(log only)
+    end
 
-  Request Headers:
-    User-Authorization: <plain_text_token>    → UserTokenFilter
-    Authorization: Bearer <developer_token>    → DeveloperTokenFilter
-
-  UserTokenFilter (chạy trước):
-    ├─ SHA-256(token)
-    ├─ Tìm trong personal_access_tokens WHERE name = 'user_auth_token'
-    └─ Nếu tồn tại → SecurityContextHolder.set(user)
-
-  DeveloperTokenFilter (chạy sau, kiểm tra nếu chưa có user auth):
-    ├─ Lấy từ Authorization header
-    ├─ SHA-256(token)
-    ├─ Tìm WHERE name = 'developer_access_token'
-    └─ Nếu tồn tại → SecurityContextHolder.set(developer)
-
-  Endpoint nhận Authentication từ Spring Security Context.
+    NextJS-->>User: Response + cookie token
 ```
 
-### 3. Luồng Thanh Toán COD
+### 3. Token Verification (Filter Chain)
 
-```
-User                                           Spring Boot                     Admin (CMS)
- │                                                │                              │
- │  POST /orders  {"type":"cart","payment_method":"cod"}
- │───────────────────────────────────────────────▶│                              │
- │                                                │                              │
- │  createOrderRecord(total > 0, COD):            │                              │
- │  - status → OrderStatus.Pending                │                              │
- │  - paid_at → null                              │                              │
- │                                                │                              │
- │  DB::afterCommit:                              │                              │
- │  - enrollmentService.enroll(user, course, order)│                             │
- │    + Tạo enrollment record                     │                              │
- │    + isEnrolled → false (vì order chưa paid)   │                              │
- │                                                │                              │
- │  { order_id: 123, status: "pending" }          │                              │
- │◀──────────────────────────────────────────────│                              │
- │                                                │                              │
- │  GET /courses/1/access                         │                              │
- │───────────────────────────────────────────────▶│                              │
- │                                                │                              │
- │  isEnrolled → false                            │                              │
- │  hasPendingEnrollment → true                   │                              │
- │  { enrolled: false, pending_access: true }     │                              │
- │◀──────────────────────────────────────────────│                              │
- │                                                │                              │
- │                                                │  Admin confirm payment       │
- │                                                │◀─────────────────────────────│
- │                                                │                              │
- │                                                │  UPDATE orders               │
- │                                                │  SET status = 'paid',        │
- │                                                │      paid_at = NOW()         │
- │                                                │                              │
- │  GET /courses/1/access                         │                              │
- │───────────────────────────────────────────────▶│                              │
- │  isEnrolled → true (order.paid = true)         │                              │
- │  { enrolled: true, pending_access: false }     │                              │
- │◀──────────────────────────────────────────────│                              │
+```mermaid
+flowchart LR
+    REQ["Request"] --> UTF["UserTokenFilter<br/>User-Authorization header"]
+
+    UTF -->|"SHA-256(token)<br/>→ personal_access_tokens<br/>WHERE name = 'user_auth_token'"| UTF_OK["Set User auth<br/>in SecurityContext"]
+
+    UTF -->|"Token not found"| DTF["DeveloperTokenFilter<br/>Authorization header"]
+
+    DTF -->|"SHA-256(token)<br/>→ personal_access_tokens<br/>WHERE name = 'developer_access_token'"| DTF_OK["Set Developer auth<br/>in SecurityContext<br/>(skip if User auth exists)"]
+    DTF -->|"No valid token"| ANON["AnonymousAuthenticationFilter"]
+
+    UTF_OK --> EP["Endpoint"]
+    DTF_OK --> EP
+    ANON --> EP
 ```
 
----
+### 4. Thanh Toán COD
 
-## Module Structure (Spring Boot)
+```mermaid
+sequenceDiagram
+    participant User as User
+    participant Spring as Spring Boot
+    participant Admin as Admin (CMS)
 
-```
-shiningenglishapi/
-├── controller/
-│   └── v1/
-│       ├── user/          AuthController, UserController, HomeController
-│       ├── course/        CourseController
-│       ├── lesson/        LessonController, LessonNoteController
-│       ├── blog/          BlogController
-│       ├── cart/          CartController
-│       ├── transaction/   OrderController, PaymentWebhookController
-│       ├── quiz/          QuizAttemptController
-│       ├── city/          CityController
-│       ├── contact/       ContactController
-│       ├── dashboard/     DashboardController
-│       ├── developer/     DeveloperController
-│       └── star/          StarController
-│
-├── service/
-│   ├── user/              UserService
-│   ├── course/            CourseService, CourseReviewService
-│   ├── lesson/            LessonService, LessonAccessService, ...
-│   ├── cart/              CartService
-│   ├── order/             OrderService
-│   ├── star/              StarService
-│   ├── quiz/              UserQuizAttemptService
-│   ├── developer/         DeveloperService
-│   ├── dashboard/         DashboardService
-│   └── enrollment/        EnrollmentService
-│
-├── repository/
-│   ├── user/              UserRepository, UserDeviceRepository, ...
-│   ├── course/            CourseRepository, CourseReviewRepository
-│   ├── lesson/            LessonRepository, LessonProgressRepository, ...
-│   ├── quiz/              QuizRepository, QuizQuestionRepository, ...
-│   ├── cart/              CartRepository
-│   ├── order/             OrderRepository, OrderItemRepository
-│   ├── star/              StarRepository, StarTransactionRepository
-│   └── blog/              BlogRepository, BlogTagRepository
-│
-├── event/                 UserRegisteredEvent, LessonCompletedEvent, ...
-│   └── listener/          InitUserStarListener, GrantLessonStarRewardListener, ...
-│
-├── security/              UserTokenFilter, DeveloperTokenFilter, RecaptchaVerifier
-├── config/                SecurityConfig, WebConfig, AsyncConfig
-├── common/                BaseController, BaseService, GlobalExceptionHandler
-├── model/
-│   ├── entity/            User, Course, Lesson, Order, Star, ...
-│   └── dto/               LoginResponse, RegisterResponse
-├── enums/                 OrderStatus, PaymentMethod, AuthenticatedBy, ...
-├── valueobject/           QueryOption, CourseFilter, DeviceInfo, ...
-└── util/                  UrlBuilder
+    User->>Spring: POST /orders { type:"cart", payment_method:"cod" }
+    Spring->>Spring: createOrderRecord(total > 0, COD)
+    Note right of Spring: status → OrderStatus.Pending<br/>paid_at → null
+    Spring->>Spring: enrollmentService.enroll(user, course, order)
+    Note over Spring: isEnrolled() → false<br/>(vì order chưa paid)
+    Spring-->>User: { order_id: 123, status: "pending" }
+
+    User->>Spring: GET /courses/1/access
+    Spring-->>User: { enrolled: false, pending_access: true }
+
+    Admin->>Spring: Admin confirm payment
+    Spring->>Spring: UPDATE orders SET status='paid', paid_at=NOW()
+
+    User->>Spring: GET /courses/1/access
+    Spring-->>User: { enrolled: true, pending_access: false }
 ```
 
 ---
@@ -273,7 +212,7 @@ shiningenglishapi/
 ```yaml
 services:
   app:          # Spring Boot với hot-reload (port 8080)
-  mysql:        # MySQL 8.4 (port 3306)
+  mysql:        # MySQL 8.4
 ```
 
 ```bash
@@ -289,29 +228,27 @@ services:
   app:
     image: ${DOCKER_REGISTRY}/${APP_NAME}:${APP_TAG}
     deploy:
-      replicas: 2                # Spring Boot replica
+      replicas: 2
       update_config:
         parallelism: 1
-        order: start-first       # Zero-downtime deploy
+        order: start-first
       healthcheck:
         test: ["CMD", "curl", "-f", "http://localhost:8080/up"]
-        interval: 10s
-        start_period: 30s
 ```
 
-**CI/CD Pipeline (đề xuất):**
+**CI/CD Pipeline:**
 
-```
-Git Push → GitHub Actions / GitLab CI
-  └─ ./gradlew build -x test
-  └─ docker build -f docker/prod/Dockerfile -t ${IMAGE}
-  └─ docker push ${IMAGE}
-  └─ docker stack deploy -c docker/prod/docker-stack.yml
+```mermaid
+flowchart LR
+    GIT[Git Push] --> BUILD["./gradlew build -x test"]
+    BUILD --> DOCKER["docker build -f docker/prod/Dockerfile"]
+    DOCKER --> PUSH["docker push ${IMAGE}"]
+    PUSH --> DEPLOY["docker stack deploy -c docker/prod/docker-stack.yml"]
 ```
 
 ### Environment Variables
 
-| Variable | Mặc định | Mô tả |
+| Variable | Default | Description |
 |---|---|---|
 | `MYSQL_HOST` | `localhost` | MySQL host |
 | `MYSQL_PORT` | `3306` | MySQL port |
@@ -320,7 +257,7 @@ Git Push → GitHub Actions / GitLab CI
 | `MYSQL_PASSWORD` | - | DB password |
 | `JPA_DDL_AUTO` | `validate` | Hibernate DDL mode |
 | `JPA_SHOW_SQL` | `false` | Log SQL queries |
-| `APP_URL` | `http://localhost:8000` | App base URL (cho thumbnail) |
+| `APP_URL` | `http://localhost:8000` | App base URL (thumbnail) |
 | `STAR_REGISTRATION_BONUS` | `15` | Star thưởng đăng ký |
 | `STAR_DAILY_CHECKIN` | `1` | Star thưởng check-in |
 | `STAR_COURSE_COMPLETE` | `10` | Star thưởng hoàn thành khóa |
@@ -329,8 +266,6 @@ Git Push → GitHub Actions / GitLab CI
 ---
 
 ## API Response Format
-
-Tất cả response đều theo format thống nhất:
 
 ```json
 {
@@ -347,8 +282,8 @@ Tất cả response đều theo format thống nhất:
 }
 ```
 
-- Thành công: `status: true`, `status_code` tương ứng HTTP
-- Lỗi: `status: false`, `message` mô tả lỗi
+- Success: `status: true`, HTTP status code
+- Error: `status: false`, `message` mô tả lỗi
 - Pagination: `meta` object trong response list
 - Field names: **snake_case** (Jackson globally configured)
 
@@ -356,7 +291,7 @@ Tất cả response đều theo format thống nhất:
 
 ## Công Nghệ
 
-| Thành phần | Công nghệ |
+| Component | Technology |
 |---|---|
 | Runtime | Java 21 (Temurin) |
 | Framework | Spring Boot 4.1.0 / Spring Security 7.x |
