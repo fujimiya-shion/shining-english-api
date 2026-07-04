@@ -41,3 +41,6 @@ out/
 
 ### Docker volumes ###
 mysql-data/
+
+### Generated docs ###
+*.docx
