@@ -5,4 +5,4 @@
     - ../inventory/group_vars/vault_db.yml
   roles:
     - common
-    - mariadb
+    - mysql

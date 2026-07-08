@@ -6,7 +6,7 @@ app_replicas: 2
 app_monitor_seconds: 30
 
 # App env
-app_mysql_host: "{{ hostvars['app-01']['ansible_host'] | default('localhost') }}"
+app_mysql_host: "{{ hostvars['db-01']['ansible_host'] | default('localhost') }}"
 app_mysql_port: 3306
 app_mysql_database: shining_english
 app_mysql_user: shining

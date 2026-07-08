@@ -1,4 +1,10 @@
 ---
+- name: Check if MySQL is already installed
+  ansible.builtin.command: mysql --version
+  register: mysql_check
+  changed_when: false
+  failed_when: false
+
 - name: Install MySQL
   ansible.builtin.apt:
     name:
@@ -6,6 +12,7 @@
       - mysql-client
       - python3-pymysql
     state: present
+  when: mysql_check.rc != 0
 
 - name: Start and enable MySQL
   ansible.builtin.systemd:
@@ -20,7 +27,7 @@
     mode: "0644"
   notify: Restart MySQL
 
-- name: Ensure MySQL is running (in case config changed)
+- name: Ensure MySQL is running
   ansible.builtin.systemd:
     name: mysql
     state: started
@@ -35,7 +42,7 @@
     encoding: utf8mb4
     collation: utf8mb4_unicode_ci
 
-- name: Create app user
+- name: Create app user with remote access
   community.mysql.mysql_user:
     login_user: root
     login_password: "{{ vault_mysql_root_password }}"
