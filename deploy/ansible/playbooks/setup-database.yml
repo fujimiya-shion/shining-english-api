@@ -1,7 +1,6 @@
 ---
 - name: Setup Database Server
   hosts: db_server
-  become: yes
   vars_files:
     - ../inventory/group_vars/vault_db.yml
   roles:

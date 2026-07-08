@@ -1,52 +1,34 @@
 ---
+- name: Check if Docker is already installed
+  ansible.builtin.command: docker --version
+  register: docker_check
+  changed_when: false
+  failed_when: false
+
 - name: Install prerequisite packages
   ansible.builtin.apt:
     name:
       - ca-certificates
+      - curl
       - gnupg
       - lsb-release
     state: present
-
-- name: Remove existing Docker GPG keyring if present
-  ansible.builtin.file:
-    path: /etc/apt/keyrings/docker.asc
-    state: absent
+  when: docker_check.rc != 0
 
 - name: Add Docker GPG key
   ansible.builtin.apt_key:
     url: https://download.docker.com/linux/ubuntu/gpg
     keyring: /etc/apt/keyrings/docker.gpg
     state: present
+  when: docker_check.rc != 0
 
-- name: Remove any Docker source entries from /etc/apt/sources.list
-  ansible.builtin.replace:
-    path: /etc/apt/sources.list
-    regexp: '(?i)^.*download\.docker\.com.*\n?'
-    replace: ''
-  ignore_errors: yes
-
-- name: Remove conflicting Docker source files
-  ansible.builtin.file:
-    path: "{{ item }}"
-    state: absent
-  loop:
-    - /etc/apt/sources.list.d/docker.list
-    - /etc/apt/sources.list.d/docker.sources
-    - /etc/apt/sources.list.d/docker.list.save
-    - /etc/apt/sources.list.d/docker.sources.save
-
-- name: Write Docker repository source
-  ansible.builtin.copy:
-    dest: /etc/apt/sources.list.d/docker.list
-    content: |
-      deb [arch=amd64 signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu {{ ansible_facts['distribution_release'] | lower }} stable
-    mode: "0644"
-
-- name: Update apt cache
-  ansible.builtin.shell:
-    cmd: apt-get update --allow-releaseinfo-change -y
-    executable: /bin/bash
-  changed_when: false
+- name: Add Docker repository
+  ansible.builtin.apt_repository:
+    repo: "deb [arch=amd64 signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu {{ ansible_facts['distribution_release'] | lower }} stable"
+    state: present
+    filename: docker
+    update_cache: yes
+  when: docker_check.rc != 0
 
 - name: Install Docker
   ansible.builtin.apt:
@@ -57,6 +39,7 @@
       - docker-buildx-plugin
       - docker-compose-plugin
     state: present
+  when: docker_check.rc != 0
 
 - name: Install Python Docker SDK
   ansible.builtin.pip:
@@ -64,12 +47,14 @@
       - docker
       - jsondiff
     state: present
+  when: docker_check.rc != 0
 
 - name: Enable and start Docker
   ansible.builtin.systemd:
     name: docker
     enabled: yes
     state: started
+  when: docker_check.rc != 0
 
 - name: Initialize Docker Swarm (if not already)
   ansible.builtin.command:
