@@ -64,6 +64,21 @@
   delegate_to: localhost
   become: no
   when: swarm_token_output.skipped is not defined
+  register: vault_decrypt
+  changed_when: false
+
+- name: Read current token from vault
+  ansible.builtin.slurp:
+    src: "{{ playbook_dir }}/../inventory/group_vars/vault_swarm_token.yml"
+  register: vault_content
+  delegate_to: localhost
+  become: no
+  when: swarm_token_output.skipped is not defined
+
+- name: Check if token already exists
+  ansible.builtin.set_fact:
+    existing_token: "{{ (vault_content.content | b64decode | from_yaml).vault_swarm_join_token | default('') }}"
+  when: swarm_token_output.skipped is not defined
 
 - name: Store swarm join token in vault
   ansible.builtin.lineinfile:
@@ -73,14 +88,13 @@
     mode: '0600'
   delegate_to: localhost
   become: no
-  when: swarm_token_output.skipped is not defined
+  when: swarm_token_output.skipped is not defined and (existing_token | default('')) == ''
 
 - name: Re-encrypt vault file
   ansible.builtin.command:
     cmd: >
       ansible-vault encrypt
       --vault-password-file {{ playbook_dir }}/../.vault_pass
-      --encrypt-vault-id default
       {{ playbook_dir }}/../inventory/group_vars/vault_swarm_token.yml
   delegate_to: localhost
   become: no
