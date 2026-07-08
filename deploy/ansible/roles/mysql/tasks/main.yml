@@ -25,12 +25,24 @@
     src: my.cnf.j2
     dest: /etc/mysql/mysql.conf.d/99-shining.cnf
     mode: "0644"
-  notify: Restart MySQL
+  register: mysql_config
+
+- name: Restart MySQL if config changed
+  ansible.builtin.systemd:
+    name: mysql
+    state: restarted
+  when: mysql_config.changed
 
 - name: Ensure MySQL is running
   ansible.builtin.systemd:
     name: mysql
     state: started
+
+- name: Allow MySQL port 3306 in UFW
+  community.general.ufw:
+    rule: allow
+    port: "3306"
+    proto: tcp
 
 - name: Create app database
   community.mysql.mysql_db:
