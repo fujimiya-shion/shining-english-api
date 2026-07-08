@@ -41,18 +41,47 @@
     enabled: yes
     state: started
 
-- name: Initialize Docker Swarm
+- name: Initialize Docker Swarm (if not already)
   ansible.builtin.command:
     cmd: docker swarm init --advertise-addr "{{ ansible_default_ipv4.address }}"
-  failed_when: false
-  changed_when: false
+  register: swarm_init
+  changed_when: "'is initialized' in swarm_init.stdout"
+  ignore_errors: yes
 
-- name: Get Swarm worker token
-  ansible.builtin.command: docker swarm join-token -q worker
-  register: swarm_token
+- name: Get swarm worker join token
+  ansible.builtin.command:
+    cmd: docker swarm join-token worker
+  register: swarm_token_output
   changed_when: false
-  failed_when: false
+  when: swarm_init.rc == 0 or swarm_init.rc == 1
 
-- name: Show swarm token
-  ansible.builtin.debug:
-    msg: "Swarm worker token: {{ swarm_token.stdout }}"
+- name: Decrypt vault file
+  ansible.builtin.command:
+    cmd: >
+      ansible-vault decrypt
+      --vault-password-file {{ playbook_dir }}/../.vault_pass
+      {{ playbook_dir }}/../inventory/group_vars/vault_swarm_token.yml
+  delegate_to: localhost
+  become: no
+  when: swarm_token_output.skipped is not defined
+
+- name: Store swarm join token in vault
+  ansible.builtin.lineinfile:
+    path: "{{ playbook_dir }}/../inventory/group_vars/vault_swarm_token.yml"
+    regexp: '^vault_swarm_join_token:.*'
+    line: "vault_swarm_join_token: {{ swarm_token_output.stdout_lines[-1] | regex_search('SWMTKN-[\\w-]+') }}"
+    mode: '0600'
+  delegate_to: localhost
+  become: no
+  when: swarm_token_output.skipped is not defined
+
+- name: Re-encrypt vault file
+  ansible.builtin.command:
+    cmd: >
+      ansible-vault encrypt
+      --vault-password-file {{ playbook_dir }}/../.vault_pass
+      --encrypt-vault-id default
+      {{ playbook_dir }}/../inventory/group_vars/vault_swarm_token.yml
+  delegate_to: localhost
+  become: no
+  when: swarm_token_output.skipped is not defined

@@ -1,4 +1,6 @@
 ---
+app_deploy_dir: /var/www/html/shining-english-api
 app_jvm_opts: "-Xms512m -Xmx1024m"
 app_spring_profiles: prod
-app_env_file: /opt/app/.env.prod
+app_env_file: "{{ app_deploy_dir }}/.env.prod"
+app_stack_file: "{{ app_deploy_dir }}/docker-stack.yml"

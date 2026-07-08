@@ -1,0 +1,24 @@
+---
+- name: Join Docker Swarm
+  hosts: app_server
+  vars_files:
+    - ../inventory/group_vars/vault_swarm_token.yml
+
+  tasks:
+    - name: Check if already in swarm
+      ansible.builtin.command:
+        cmd: docker info --format '{{ "{{" }}.Swarm.LocalNodeState{{ "}}" }}'
+      register: swarm_state
+      changed_when: false
+
+    - name: Get manager IP
+      ansible.builtin.set_fact:
+        manager_ip: "{{ hostvars[groups['app_server'] | first]['ansible_host'] }}"
+
+    - name: Join swarm as worker
+      ansible.builtin.command:
+        cmd: >
+          docker swarm join
+          --token {{ vault_swarm_join_token }}
+          {{ manager_ip }}:2377
+      when: swarm_state.stdout != "active"
