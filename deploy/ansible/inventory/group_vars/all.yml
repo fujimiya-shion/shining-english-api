@@ -14,5 +14,5 @@ app_mysql_user: shining
 app_frontend_url: "https://dev.edgarden.net"
 
 # Nginx
-nginx_backend_domain: api.shiningenglish.vn
+nginx_backend_domain: staging-api.edgarden.net
 nginx_ssl_email: admin@shiningenglish.vn
