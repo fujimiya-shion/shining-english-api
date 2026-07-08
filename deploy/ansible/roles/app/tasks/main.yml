@@ -17,10 +17,4 @@
     dest: "{{ app_env_file }}"
     mode: "0600"
 
-- name: Deploy initial stack
-  ansible.builtin.command:
-    cmd: docker stack deploy -c "{{ app_stack_file }}" shiningenglish
 
-- name: Wait for stack to stabilize
-  ansible.builtin.pause:
-    seconds: 10
