@@ -1,0 +1,18 @@
+upstream app_backend {
+    {% for host in groups['app_server'] %}
+    server {{ hostvars[host]['ansible_default_ipv4']['address'] }}:{{ app_port }} max_fails=3 fail_timeout=30s;
+    {% endfor %}
+}
+
+server {
+    listen 80;
+    server_name {{ nginx_backend_domain }};
+
+    location /.well-known/acme-challenge/ {
+        root /var/www/html;
+    }
+
+    location / {
+        return 301 https://$host$request_uri;
+    }
+}

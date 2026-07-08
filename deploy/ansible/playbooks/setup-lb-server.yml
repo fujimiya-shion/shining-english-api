@@ -1,0 +1,7 @@
+---
+- name: Setup Load Balancer (Nginx + Certbot)
+  hosts: lb_server
+  become: yes
+  roles:
+    - common
+    - nginx

@@ -45,5 +45,9 @@ mysql-data/
 ### Generated docs ###
 *.docx
 
+### Deploy secrets ###
+deploy/ansible/.vault_pass
+deploy/ansible/inventory/production.yml
+
 ### macOS ###
 .DS_Store

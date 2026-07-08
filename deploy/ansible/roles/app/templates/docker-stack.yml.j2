@@ -1,0 +1,29 @@
+services:
+  app:
+    image: {{ docker_registry }}/{{ app_name }}:${APP_TAG:-latest}
+    env_file: {{ app_env_file }}
+    ports:
+      - target: 8080
+        published: {{ app_port }}
+        protocol: tcp
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/up"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    deploy:
+      mode: replicated
+      replicas: {{ app_replicas }}
+      update_config:
+        parallelism: 1
+        monitor: {{ app_monitor_seconds }}s
+        failure_action: rollback
+        order: start-first
+      rollback_config:
+        parallelism: 1
+        order: start-first
+      restart_policy:
+        condition: any
+        delay: 5s
+        window: 120s

@@ -1,0 +1,4 @@
+---
+app_jvm_opts: "-Xms512m -Xmx1024m"
+app_spring_profiles: prod
+app_env_file: /opt/app/.env.prod

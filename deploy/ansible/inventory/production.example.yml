@@ -1,0 +1,8 @@
+all:
+  children:
+    app_server:
+      hosts:
+        app-01:
+          ansible_host: <SERVER_IP>
+          ansible_user: root
+          ansible_ssh_private_key_file: ~/.ssh/id_ed25519

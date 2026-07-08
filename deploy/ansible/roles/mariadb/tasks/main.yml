@@ -1,0 +1,65 @@
+---
+- name: Install MariaDB
+  ansible.builtin.apt:
+    name:
+      - mariadb-server
+      - mariadb-client
+      - python3-pymysql
+    state: present
+
+- name: Deploy my.cnf
+  ansible.builtin.template:
+    src: my.cnf.j2
+    dest: /etc/mysql/mariadb.conf.d/99-shiningenglish.cnf
+    mode: "0644"
+  notify: Restart MariaDB
+
+- name: Start MariaDB
+  ansible.builtin.systemd:
+    name: mariadb
+    state: started
+    enabled: yes
+
+- name: Set root password
+  community.mysql.mysql_user:
+    login_user: root
+    login_password: ""
+    login_unix_socket: /run/mysqld/mysqld.sock
+    name: root
+    password: "{{ vault_mysql_root_password }}"
+    host: "{{ item }}"
+  loop:
+    - localhost
+    - 127.0.0.1
+    - ::1
+
+- name: Create app database
+  community.mysql.mysql_db:
+    login_user: root
+    login_password: "{{ vault_mysql_root_password }}"
+    name: "{{ app_mysql_database }}"
+    state: present
+    encoding: utf8mb4
+    collation: utf8mb4_unicode_ci
+
+- name: Create app user
+  community.mysql.mysql_user:
+    login_user: root
+    login_password: "{{ vault_mysql_root_password }}"
+    name: "{{ app_mysql_user }}"
+    password: "{{ vault_mysql_app_password }}"
+    host: "{{ item }}"
+    priv: "{{ app_mysql_database }}.*:ALL"
+    state: present
+  loop:
+    - localhost
+    - "{{ ansible_default_ipv4.address }}"
+    - "%"
+
+- name: Drop anonymous users
+  community.mysql.mysql_user:
+    login_user: root
+    login_password: "{{ vault_mysql_root_password }}"
+    name: ""
+    host_all: yes
+    state: absent
