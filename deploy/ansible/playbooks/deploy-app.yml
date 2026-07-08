@@ -36,7 +36,7 @@
 
     - name: Force service update
       ansible.builtin.command:
-        cmd: docker service update --force --update-order start-first shiningenglish_app
+        cmd: docker service update --force --update-order start-first shiningenglish_api
       register: update_result
       changed_when: "'updated' in update_result.stdout"
 
