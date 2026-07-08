@@ -8,8 +8,17 @@
   ansible.builtin.apt:
     name:
       - certbot
-      - python3-certbot-nginx
+      - python3-certbot
     state: present
+
+- name: Remove old conflicting configs
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - /etc/nginx/conf.d/staging-cms.edgarden.net.conf
+    - /etc/nginx/conf.d/shiningenglish-ssl.conf
+  notify: Reload Nginx
 
 - name: Deploy nginx.conf
   ansible.builtin.template:
@@ -25,22 +34,21 @@
     mode: "0644"
   notify: Reload Nginx
 
+- name: Ensure webroot exists
+  ansible.builtin.file:
+    path: /var/www/html
+    state: directory
+    mode: "0755"
+
+- name: Obtain Let's Encrypt certificate
+  ansible.builtin.command:
+    cmd: certbot certonly --webroot -w /var/www/html -d {{ nginx_backend_domain }} --non-interactive --agree-tos -m {{ nginx_ssl_email }}
+  args:
+    creates: /etc/letsencrypt/live/{{ nginx_backend_domain }}/fullchain.pem
+
 - name: Deploy SSL config
   ansible.builtin.template:
     src: ssl.conf.j2
     dest: /etc/nginx/conf.d/shiningenglish-ssl.conf
     mode: "0644"
-  notify: Reload Nginx
-
-- name: Obtain Let's Encrypt certificate
-  ansible.builtin.command:
-    cmd: certbot --nginx -d {{ nginx_backend_domain }} --non-interactive --agree-tos -m {{ nginx_ssl_email }}
-  args:
-    creates: /etc/letsencrypt/live/{{ nginx_backend_domain }}/fullchain.pem
-
-- name: Enable sites
-  ansible.builtin.file:
-    src: /etc/nginx/sites-available/default
-    dest: /etc/nginx/sites-enabled/default
-    state: link
   notify: Reload Nginx
