@@ -12,6 +12,8 @@ import vn.edu.shiningenglish.shiningenglishapi.enums.PaymentMethod;
 import vn.edu.shiningenglish.shiningenglishapi.model.entity.Order;
 import vn.edu.shiningenglish.shiningenglishapi.repository.order.OrderRepository;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.LocalDateTime;
 import java.util.*;
 
@@ -110,7 +112,7 @@ public class PayosPaymentStrategy implements PaymentStrategy {
 
             order.setPaymentReference(paymentLinkId);
             order.setPaymentCheckoutUrl(checkoutUrl);
-            order.setPaymentMetadata(metadata.toString());
+            order.setPaymentMetadata(toJsonString(metadata));
             orderRepository.save(order);
 
             return PaymentInitializationResult.redirect(checkoutUrl, Map.of(
@@ -163,7 +165,7 @@ public class PayosPaymentStrategy implements PaymentStrategy {
                 order.setPaidAt(order.getPaidAt() != null ? order.getPaidAt() : LocalDateTime.now());
             }
             order.setStatus(nextStatus);
-            order.setPaymentMetadata(metadata.toString());
+            order.setPaymentMetadata(toJsonString(metadata));
             orderRepository.save(order);
 
             return orderRepository.findById(order.getId()).orElse(order);
@@ -207,7 +209,7 @@ public class PayosPaymentStrategy implements PaymentStrategy {
             metadata.put("provider_status", "CANCELLED");
             metadata.put("raw_cancel_link_response", data != null ? data : Map.of());
 
-            order.setPaymentMetadata(metadata.toString());
+            order.setPaymentMetadata(toJsonString(metadata));
             orderRepository.save(order);
         } catch (Exception e) {
             log.error("PayOS cancel error", e);
@@ -258,10 +260,19 @@ public class PayosPaymentStrategy implements PaymentStrategy {
         order.setStatus(nextStatus);
         var paymentLinkId = (String) data.get("paymentLinkId");
         if (paymentLinkId != null) order.setPaymentReference(paymentLinkId);
-        order.setPaymentMetadata(metadata.toString());
+        order.setPaymentMetadata(toJsonString(metadata));
         orderRepository.save(order);
 
         return order;
+    }
+
+    private String toJsonString(Map<String, Object> map) {
+        try {
+            return new ObjectMapper().writeValueAsString(map);
+        } catch (JsonProcessingException e) {
+            log.error("Failed to serialize metadata to JSON", e);
+            return "{}";
+        }
     }
 
     private HttpHeaders headers() {
