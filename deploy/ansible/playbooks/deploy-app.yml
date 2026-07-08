@@ -3,6 +3,7 @@
   hosts: app_server
   vars_files:
     - ../inventory/group_vars/vault_db.yml
+    - ../inventory/group_vars/vault_dockerhub.yml
     - ../inventory/group_vars/vault_payos.yml
     - ../inventory/group_vars/vault_recaptcha.yml
   tasks:
