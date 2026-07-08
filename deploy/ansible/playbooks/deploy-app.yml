@@ -8,14 +8,13 @@
     - ../inventory/group_vars/vault_recaptcha.yml
   tasks:
     - name: Login to DockerHub
-      community.docker.docker_login:
-        username: "{{ vault_dockerhub_username }}"
-        password: "{{ vault_dockerhub_token }}"
+      ansible.builtin.command:
+        cmd: docker login -u "{{ vault_dockerhub_username }}" -p "{{ vault_dockerhub_token }}"
+      no_log: true
 
     - name: Pull new image
-      community.docker.docker_image:
-        name: "{{ docker_registry }}/{{ app_name }}:{{ lookup('env', 'APP_TAG') }}"
-        source: pull
+      ansible.builtin.command:
+        cmd: docker pull "{{ docker_registry }}/{{ app_name }}:{{ lookup('env', 'APP_TAG') }}"
 
     - name: Deploy docker-stack.yml
       ansible.builtin.template:
@@ -30,12 +29,10 @@
         mode: "0600"
 
     - name: Deploy stack
-      community.docker.docker_stack:
-        state: present
-        name: shiningenglish
-        compose:
-          - /opt/app/docker-stack.yml
-        resolve_image: always
+      ansible.builtin.command:
+        cmd: docker stack deploy -c /opt/app/docker-stack.yml shiningenglish
+      register: stack_deploy
+      changed_when: "'created' in stack_deploy.stdout or 'updated' in stack_deploy.stdout"
 
     - name: Force service update
       ansible.builtin.command:
@@ -48,12 +45,9 @@
         seconds: 15
 
     - name: Verify all replicas are running
-      community.docker.docker_stack_info:
-        name: shiningenglish
-      register: stack_info
+      ansible.builtin.shell:
+        cmd: docker stack services shiningenglish --format '{{ "{{" }}.Replicas{{ "}}" }}' | grep -o '^[0-9]\+' | head -1
+      register: replicas
       retries: 10
       delay: 5
-      until: >
-        stack_info.services | default([]) |
-        selectattr('name', 'equalto', 'shiningenglish_app') |
-        map(attribute='replicas_current') | first | default(0) | int >= app_replicas
+      until: replicas.stdout | int >= app_replicas

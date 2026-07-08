@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-TAG="${1:-latest}"
+TAG="${1:-$(git describe --always --tags)}"
 
 echo "Building JAR..."
 ./gradlew bootJar --no-daemon

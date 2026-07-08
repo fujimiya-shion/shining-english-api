@@ -42,18 +42,17 @@
     state: started
 
 - name: Initialize Docker Swarm
-  community.docker.swarm:
-    state: present
-    advertise_addr: "{{ ansible_default_ipv4.address }}"
-  register: swarm_init
+  ansible.builtin.command:
+    cmd: docker swarm init --advertise-addr "{{ ansible_default_ipv4.address }}"
+  failed_when: false
+  changed_when: false
 
 - name: Get Swarm worker token
   ansible.builtin.command: docker swarm join-token -q worker
   register: swarm_token
   changed_when: false
-  when: swarm_init.changed
+  failed_when: false
 
 - name: Show swarm token
   ansible.builtin.debug:
     msg: "Swarm worker token: {{ swarm_token.stdout }}"
-  when: swarm_token is defined and swarm_token.stdout is defined

@@ -18,12 +18,8 @@
     mode: "0600"
 
 - name: Deploy initial stack
-  community.docker.docker_stack:
-    state: present
-    name: shiningenglish
-    compose:
-      - /opt/app/docker-stack.yml
-    resolve_image: always
+  ansible.builtin.command:
+    cmd: docker stack deploy -c /opt/app/docker-stack.yml shiningenglish
 
 - name: Wait for stack to stabilize
   ansible.builtin.pause:
