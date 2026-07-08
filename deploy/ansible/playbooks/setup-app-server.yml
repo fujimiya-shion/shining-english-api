@@ -8,6 +8,7 @@
     - ../inventory/group_vars/vault_swarm_token.yml
   roles:
     - common
+    - mysql
     - docker
     - nginx
     - app

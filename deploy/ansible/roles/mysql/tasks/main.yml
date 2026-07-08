@@ -1,0 +1,52 @@
+---
+- name: Install MySQL
+  ansible.builtin.apt:
+    name:
+      - mysql-server
+      - mysql-client
+      - python3-pymysql
+    state: present
+
+- name: Start and enable MySQL
+  ansible.builtin.systemd:
+    name: mysql
+    state: started
+    enabled: yes
+
+- name: Deploy my.cnf with bind-address 0.0.0.0
+  ansible.builtin.template:
+    src: my.cnf.j2
+    dest: /etc/mysql/mysql.conf.d/99-shining.cnf
+    mode: "0644"
+  notify: Restart MySQL
+
+- name: Ensure MySQL is running (in case config changed)
+  ansible.builtin.systemd:
+    name: mysql
+    state: started
+
+- name: Create app database
+  community.mysql.mysql_db:
+    login_user: root
+    login_password: "{{ vault_mysql_root_password }}"
+    login_host: 127.0.0.1
+    name: "{{ app_mysql_database }}"
+    state: present
+    encoding: utf8mb4
+    collation: utf8mb4_unicode_ci
+
+- name: Create app user
+  community.mysql.mysql_user:
+    login_user: root
+    login_password: "{{ vault_mysql_root_password }}"
+    login_host: 127.0.0.1
+    name: "{{ app_mysql_user }}"
+    password: "{{ vault_mysql_app_password }}"
+    host: "{{ item }}"
+    priv: "{{ app_mysql_database }}.*:ALL"
+    state: present
+  loop:
+    - localhost
+    - 127.0.0.1
+    - "%"
+    - "{{ ansible_default_ipv4.address }}"

@@ -45,6 +45,12 @@
     cmd: certbot certonly --webroot -w /var/www/html -d {{ nginx_backend_domain }} --non-interactive --agree-tos -m {{ nginx_ssl_email }}
   args:
     creates: /etc/letsencrypt/live/{{ nginx_backend_domain }}/fullchain.pem
+  ignore_errors: yes
+
+- name: Check if SSL certificate exists
+  ansible.builtin.stat:
+    path: /etc/letsencrypt/live/{{ nginx_backend_domain }}/fullchain.pem
+  register: nginx_ssl_cert
 
 - name: Deploy SSL config
   ansible.builtin.template:
@@ -52,3 +58,4 @@
     dest: /etc/nginx/conf.d/shiningenglish-ssl.conf
     mode: "0644"
   notify: Reload Nginx
+  when: nginx_ssl_cert.stat.exists
