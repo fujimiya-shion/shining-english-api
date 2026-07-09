@@ -11,8 +11,6 @@ app_mysql_port: 3306
 app_mysql_database: shining_english
 app_mysql_user: shining
 
-app_frontend_url: "https://dev.edgarden.net"
-
 # Nginx
 nginx_backend_domain: staging-api.edgarden.net
 nginx_ssl_email: admin@shiningenglish.vn
