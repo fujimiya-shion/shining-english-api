@@ -11,13 +11,10 @@
       - python3-certbot
     state: present
 
-- name: Remove old conflicting configs
+- name: Remove old shiningenglish SSL config if present
   ansible.builtin.file:
-    path: "{{ item }}"
+    path: /etc/nginx/conf.d/shiningenglish-ssl.conf
     state: absent
-  loop:
-    - /etc/nginx/conf.d/staging-cms.edgarden.net.conf
-    - /etc/nginx/conf.d/shiningenglish-ssl.conf
   notify: Reload Nginx
 
 - name: Deploy nginx.conf

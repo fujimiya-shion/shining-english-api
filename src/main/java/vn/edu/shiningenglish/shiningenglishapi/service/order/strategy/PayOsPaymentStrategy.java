@@ -55,15 +55,16 @@ public class PayosPaymentStrategy implements PaymentStrategy {
             return PaymentInitializationResult.none();
         }
 
-        var orderCode = order.getId().intValue();
-        var returnUrl = frontendUrl + "/payment/success?orderCode=" + orderCode;
-        var cancelUrl = frontendUrl + "/payment/fail?orderCode=" + orderCode;
-        var description = ("SE" + orderCode).substring(0, Math.min(9, ("SE" + orderCode).length()));
+        var payosOrderCode = (int) (Math.abs(System.nanoTime() ^ order.getId()) % 900000000L + 100000000L);
+        var dbOrderCode = order.getId().intValue();
+        var returnUrl = frontendUrl + "/payment/success?orderCode=" + dbOrderCode;
+        var cancelUrl = frontendUrl + "/payment/fail?orderCode=" + dbOrderCode;
+        var description = ("SE" + payosOrderCode).substring(0, Math.min(9, ("SE" + payosOrderCode).length()));
 
         var itemsPayload = new ArrayList<Map<String, Object>>();
 
         var payload = new LinkedHashMap<String, Object>();
-        payload.put("orderCode", orderCode);
+        payload.put("orderCode", payosOrderCode);
         payload.put("amount", order.getTotalAmount());
         payload.put("description", description);
         payload.put("buyerName", customerData.getOrDefault("buyer_name", customerData.getOrDefault("fullName", "")));
@@ -76,7 +77,7 @@ public class PayosPaymentStrategy implements PaymentStrategy {
             "amount", order.getTotalAmount(),
             "cancelUrl", cancelUrl,
             "description", description,
-            "orderCode", orderCode,
+            "orderCode", payosOrderCode,
             "returnUrl", returnUrl
         ), checksumKey));
 
@@ -108,6 +109,7 @@ public class PayosPaymentStrategy implements PaymentStrategy {
             metadata.put("provider", "payos");
             metadata.put("provider_status", data.get("status"));
             metadata.put("qr_code", data.get("qrCode"));
+            metadata.put("payos_order_code", payosOrderCode);
             metadata.put("raw_create_link_response", data);
 
             order.setPaymentReference(paymentLinkId);
