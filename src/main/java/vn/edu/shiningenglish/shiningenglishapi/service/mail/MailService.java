@@ -24,6 +24,9 @@ public class MailService {
     @Value("${app.mail.from_name:Shining English}")
     private String fromName;
 
+    @Value("${app.frontend_url:http://localhost:3000}")
+    private String frontendUrl;
+
     public MailService(JavaMailSender mailSender, TemplateEngine templateEngine) {
         this.mailSender = mailSender;
         this.templateEngine = templateEngine;
@@ -51,15 +54,13 @@ public class MailService {
         var ctx = new Context();
         ctx.setVariable("userName", userName);
         ctx.setVariable("userId", userId);
-        ctx.setVariable("frontendUrl", System.getenv("APP_FRONTEND_URL"));
+        ctx.setVariable("frontendUrl", frontendUrl);
         sendHtml(to, "Xác nhận email - Shining English", "mail/verify-email", ctx);
     }
 
     @Async
     public void sendPasswordResetEmail(String to, String token) {
-        var appUrl = System.getenv("APP_FRONTEND_URL");
-        var resetUrl = (appUrl != null ? appUrl : "http://localhost:3000")
-            + "/reset-password?token=" + token + "&email=" + to;
+        var resetUrl = frontendUrl + "/reset-password?token=" + token + "&email=" + to;
         var ctx = new Context();
         ctx.setVariable("resetUrl", resetUrl);
         ctx.setVariable("email", to);
