@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head><meta charset="UTF-8"/></head>
+<body style="font-family: Arial, sans-serif; padding: 20px;">
+  <h2>Chào mừng bạn đến với Shining English!</h2>
+  <p>Cảm ơn bạn đã đăng ký tài khoản.</p>
+  <p>Vui lòng nhấn vào liên kết bên dưới để xác nhận email của bạn:</p>
+  <p><a th:href="${frontendUrl} + '/verify-email?userId=' + ${userId}" style="background: #f2a900; color: #fff; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Xác nhận Email</a></p>
+  <p>Nếu bạn không đăng ký tài khoản này, vui lòng bỏ qua email này.</p>
+</body>
+</html>

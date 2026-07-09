@@ -7,11 +7,18 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 import vn.edu.shiningenglish.shiningenglishapi.enums.AuthenticatedBy;
 import vn.edu.shiningenglish.shiningenglishapi.event.UserRegisteredEvent;
+import vn.edu.shiningenglish.shiningenglishapi.service.mail.MailService;
 
 @Component
 public class SendEmailVerificationListener {
 
     private static final Logger log = LoggerFactory.getLogger(SendEmailVerificationListener.class);
+
+    private final MailService mailService;
+
+    public SendEmailVerificationListener(MailService mailService) {
+        this.mailService = mailService;
+    }
 
     @Async
     @EventListener
@@ -20,8 +27,7 @@ public class SendEmailVerificationListener {
             log.info("Skip email verification for third-party user: userId={}", event.getUserId());
             return;
         }
-        log.info("SendEmailVerificationJob started for userId={}, email={}", event.getUserId(), event.getEmail());
-        // In production, send actual email via JavaMailSender
-        log.info("Verification email would be sent to: {} (userId={})", event.getEmail(), event.getUserId());
+        log.info("Sending verification email to userId={}, email={}", event.getUserId(), event.getEmail());
+        mailService.sendVerificationEmail(event.getEmail(), event.getName(), event.getUserId());
     }
 }

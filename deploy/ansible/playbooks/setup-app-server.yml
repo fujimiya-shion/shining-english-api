@@ -6,6 +6,7 @@
     - ../inventory/group_vars/vault_payos.yml
     - ../inventory/group_vars/vault_recaptcha.yml
     - ../inventory/group_vars/vault_swarm_token.yml
+    - ../inventory/group_vars/vault_mail.yml
   roles:
     - common
     - docker

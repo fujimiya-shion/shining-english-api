@@ -6,6 +6,7 @@
     - ../inventory/group_vars/vault_dockerhub.yml
     - ../inventory/group_vars/vault_payos.yml
     - ../inventory/group_vars/vault_recaptcha.yml
+    - ../inventory/group_vars/vault_mail.yml
   tasks:
     - name: Login to DockerHub
       ansible.builtin.command:
