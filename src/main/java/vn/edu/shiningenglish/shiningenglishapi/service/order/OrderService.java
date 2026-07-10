@@ -3,8 +3,7 @@ package vn.edu.shiningenglish.shiningenglishapi.service.order;
 import org.springframework.data.domain.Page;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.transaction.support.TransactionSynchronization;
-import org.springframework.transaction.support.TransactionSynchronizationManager;
+
 import vn.edu.shiningenglish.shiningenglishapi.enums.OrderStatus;
 import vn.edu.shiningenglish.shiningenglishapi.enums.PaymentMethod;
 import vn.edu.shiningenglish.shiningenglishapi.model.dto.transaction.checkout.CheckoutOrderResponse;
@@ -95,8 +94,8 @@ public class OrderService {
         if (initialStatus == OrderStatus.paid) {
             order.setPaidAt(LocalDateTime.now());
         }
-        var savedOrderId = order.getId();
         order = orderRepository.save(order);
+        var savedOrderId = order.getId();
 
         for (var item : items) {
             var course = courseRepository.findById(item.getCourseId());
@@ -110,14 +109,9 @@ public class OrderService {
 
         cartRepository.deleteByUserId(userId);
 
-        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-            @Override
-            public void afterCommit() {
-                for (Long courseId : courseIds) {
-                    enrollmentService.enroll(userId, courseId, savedOrderId);
-                }
-            }
-        });
+        for (Long courseId : courseIds) {
+            enrollmentService.enroll(userId, courseId, savedOrderId);
+        }
 
         return finalizeCheckout(order, customerData);
     }
@@ -139,8 +133,8 @@ public class OrderService {
         if (initialStatus == OrderStatus.paid) {
             order.setPaidAt(LocalDateTime.now());
         }
-        var savedOrderId = order.getId();
         order = orderRepository.save(order);
+        var savedOrderId = order.getId();
 
         var oi = new OrderItem();
         oi.setOrderId(order.getId());
@@ -149,12 +143,7 @@ public class OrderService {
         oi.setPrice(course.getPrice() != null ? course.getPrice() : 0);
         orderItemRepository.save(oi);
 
-        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-            @Override
-            public void afterCommit() {
-                enrollmentService.enroll(userId, courseId, savedOrderId);
-            }
-        });
+        enrollmentService.enroll(userId, courseId, savedOrderId);
 
         return finalizeCheckout(order, customerData);
     }
@@ -188,8 +177,8 @@ public class OrderService {
         order.setPaymentMethod(PaymentMethod.star);
         order.setPlacedAt(LocalDateTime.now());
         order.setPaidAt(LocalDateTime.now());
-        var savedOrderId = order.getId();
         order = orderRepository.save(order);
+        var savedOrderId = order.getId();
 
         var oi = new OrderItem();
         oi.setOrderId(order.getId());
@@ -198,12 +187,7 @@ public class OrderService {
         oi.setPrice(0);
         orderItemRepository.save(oi);
 
-        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-            @Override
-            public void afterCommit() {
-                enrollmentService.enroll(userId, courseId, savedOrderId);
-            }
-        });
+        enrollmentService.enroll(userId, courseId, savedOrderId);
 
         return order;
     }
