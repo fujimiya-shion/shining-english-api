@@ -1,10 +1,12 @@
 package vn.edu.shiningenglish.shiningenglishapi.controller.v1.transaction;
 
+import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import vn.edu.shiningenglish.shiningenglishapi.common.BaseController;
 import vn.edu.shiningenglish.shiningenglishapi.enums.PaymentMethod;
+import vn.edu.shiningenglish.shiningenglishapi.model.dto.request.CreateOrderRequest;
 import vn.edu.shiningenglish.shiningenglishapi.model.entity.User;
 import vn.edu.shiningenglish.shiningenglishapi.service.order.OrderService;
 import vn.edu.shiningenglish.shiningenglishapi.valueobject.CheckoutCustomerData;
@@ -41,22 +43,24 @@ public class OrderController extends BaseController {
     }
 
     @PostMapping
-    public ResponseEntity<Map<String, Object>> store(Authentication auth, @RequestBody Map<String, Object> body) {
+    public ResponseEntity<Map<String, Object>> store(Authentication auth, @Valid @RequestBody CreateOrderRequest request) {
         var user = (User) auth.getPrincipal();
-        var type = (String) body.get("type");
-        var paymentMethodStr = (String) body.getOrDefault("payment_method", "cod");
-        var paymentMethod = PaymentMethod.valueOf(paymentMethodStr);
-        var customerData = CheckoutCustomerData.fromRawMap(body);
+        var paymentMethod = PaymentMethod.valueOf(request.paymentMethod() != null ? request.paymentMethod() : "cod");
+        var customerData = new CheckoutCustomerData(
+            request.buyerName(),
+            request.buyerEmail(),
+            request.buyerPhone()
+        );
 
         try {
             Map<String, Object> checkout;
-            if ("cart".equals(type)) {
+            if ("cart".equals(request.type())) {
                 checkout = orderService.createFromCart(user.getId(), paymentMethod, customerData);
             } else {
                 checkout = orderService.createBuyNow(
                     user.getId(),
-                    ((Number) body.get("course_id")).longValue(),
-                    body.containsKey("quantity") ? ((Number) body.get("quantity")).intValue() : 1,
+                    request.courseId(),
+                    request.quantity() != null ? request.quantity() : 1,
                     paymentMethod,
                     customerData
                 );

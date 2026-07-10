@@ -3,6 +3,7 @@ package vn.edu.shiningenglish.shiningenglishapi.common.exception;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
@@ -25,10 +26,19 @@ public class GlobalExceptionHandler {
         return buildError(e.getMessage(), 422);
     }
 
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ResponseEntity<Map<String, Object>> handleValidation(MethodArgumentNotValidException e) {
+        var errors = new LinkedHashMap<String, String>();
+        for (var fieldError : e.getBindingResult().getFieldErrors()) {
+            errors.put(fieldError.getField(), fieldError.getDefaultMessage());
+        }
+        return buildError("Validation failed", 422, errors);
+    }
+
     @ExceptionHandler(RuntimeException.class)
     public ResponseEntity<Map<String, Object>> handleRuntime(RuntimeException e) {
         log.error("Unhandled runtime exception", e);
-        return buildError(e.getMessage(), 422);
+        return buildError(e.getMessage() != null ? e.getMessage() : "Internal server error", 422);
     }
 
     @ExceptionHandler(Exception.class)
@@ -38,10 +48,17 @@ public class GlobalExceptionHandler {
     }
 
     private ResponseEntity<Map<String, Object>> buildError(String message, int statusCode) {
+        return buildError(message, statusCode, null);
+    }
+
+    private ResponseEntity<Map<String, Object>> buildError(String message, int statusCode, Object errors) {
         var body = new LinkedHashMap<String, Object>();
         body.put("message", message);
         body.put("status", false);
         body.put("status_code", statusCode);
+        if (errors != null) {
+            body.put("errors", errors);
+        }
         return ResponseEntity.status(statusCode).body(body);
     }
 }

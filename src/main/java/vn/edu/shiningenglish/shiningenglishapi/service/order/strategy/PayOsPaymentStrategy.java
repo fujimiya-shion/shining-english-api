@@ -18,9 +18,9 @@ import java.time.LocalDateTime;
 import java.util.*;
 
 @Component
-public class PayosPaymentStrategy implements PaymentStrategy {
+public class PayOsPaymentStrategy implements PaymentStrategy {
 
-    private static final Logger log = LoggerFactory.getLogger(PayosPaymentStrategy.class);
+    private static final Logger log = LoggerFactory.getLogger(PayOsPaymentStrategy.class);
 
     private final OrderRepository orderRepository;
     private final RestTemplate restTemplate = new RestTemplate();
@@ -40,7 +40,7 @@ public class PayosPaymentStrategy implements PaymentStrategy {
     @Value("${app.frontend_url:http://localhost:3000}")
     private String frontendUrl;
 
-    public PayosPaymentStrategy(OrderRepository orderRepository) {
+    public PayOsPaymentStrategy(OrderRepository orderRepository) {
         this.orderRepository = orderRepository;
     }
 

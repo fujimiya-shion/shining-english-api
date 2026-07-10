@@ -1,8 +1,10 @@
 package vn.edu.shiningenglish.shiningenglishapi.controller.v1.contact;
 
+import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import vn.edu.shiningenglish.shiningenglishapi.common.BaseController;
+import vn.edu.shiningenglish.shiningenglishapi.model.dto.request.ContactRequest;
 import vn.edu.shiningenglish.shiningenglishapi.model.entity.Contact;
 import vn.edu.shiningenglish.shiningenglishapi.repository.ContactRepository;
 import vn.edu.shiningenglish.shiningenglishapi.security.RecaptchaVerifier;
@@ -22,23 +24,19 @@ public class ContactController extends BaseController {
     }
 
     @PostMapping
-    public ResponseEntity<Map<String, Object>> store(@RequestBody Map<String, Object> body) {
-        try {
-            recaptchaVerifier.verifyOrFail(
-                (String) body.get("recaptcha_token"),
-                "contact",
-                (String) body.getOrDefault("ip_address", null)
-            );
-        } catch (IllegalArgumentException e) {
-            return error(e.getMessage(), 422);
-        }
+    public ResponseEntity<Map<String, Object>> store(@Valid @RequestBody ContactRequest request) {
+        recaptchaVerifier.verifyOrFail(
+            request.recaptchaToken(),
+            "contact",
+            request.ipAddress()
+        );
 
         var contact = new Contact();
-        contact.setName((String) body.get("name"));
-        contact.setEmail((String) body.get("email"));
-        contact.setMessage((String) body.get("message"));
-        contact.setIpAddress((String) body.getOrDefault("ip_address", null));
-        contact.setUserAgent((String) body.getOrDefault("user_agent", null));
+        contact.setName(request.name());
+        contact.setEmail(request.email());
+        contact.setMessage(request.message());
+        contact.setIpAddress(request.ipAddress());
+        contact.setUserAgent(request.userAgent());
         contactRepository.save(contact);
 
         return created(null, "Contact submitted successfully.");

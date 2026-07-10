@@ -1,5 +1,6 @@
 package vn.edu.shiningenglish.shiningenglishapi.controller.v1.developer;
 
+import jakarta.validation.Valid;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.HexFormat;
@@ -13,6 +14,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import vn.edu.shiningenglish.shiningenglishapi.common.BaseController;
+import vn.edu.shiningenglish.shiningenglishapi.model.dto.request.AccessTokenRequest;
 import vn.edu.shiningenglish.shiningenglishapi.model.entity.PersonalAccessToken;
 import vn.edu.shiningenglish.shiningenglishapi.repository.PersonalAccessTokenRepository;
 import vn.edu.shiningenglish.shiningenglishapi.service.developer.DeveloperService;
@@ -30,8 +32,8 @@ public class DeveloperController extends BaseController {
     }
 
     @PostMapping("/access-token")
-    public ResponseEntity<Map<String, Object>> accessToken(@RequestBody Map<String, Object> body) {
-        var developer = developerService.login((String) body.get("email"), (String) body.get("password"));
+    public ResponseEntity<Map<String, Object>> accessToken(@Valid @RequestBody AccessTokenRequest request) {
+        var developer = developerService.login(request.email(), request.password());
         if (developer.isEmpty()) return unauthorized("Unauthorized");
 
         var plainToken = UUID.randomUUID().toString().replace("-", "") + UUID.randomUUID().toString().replace("-", "");

@@ -3,6 +3,7 @@ package vn.edu.shiningenglish.shiningenglishapi.controller.v1.lesson;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
+import jakarta.validation.Valid;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -19,6 +20,7 @@ import org.springframework.web.bind.annotation.RestController;
 import tools.jackson.databind.ObjectMapper;
 import vn.edu.shiningenglish.shiningenglishapi.common.BaseController;
 import vn.edu.shiningenglish.shiningenglishapi.model.entity.User;
+import vn.edu.shiningenglish.shiningenglishapi.model.dto.request.CreateCommentRequest;
 import vn.edu.shiningenglish.shiningenglishapi.repository.quiz.QuizAnswerRepository;
 import vn.edu.shiningenglish.shiningenglishapi.repository.quiz.QuizQuestionRepository;
 import vn.edu.shiningenglish.shiningenglishapi.repository.quiz.QuizRepository;
@@ -174,7 +176,8 @@ public class LessonController extends BaseController {
     }
 
     @PostMapping("/{id}/comments")
-    public ResponseEntity<Map<String, Object>> storeComment(Authentication auth, @PathVariable Long id, @RequestBody Map<String, Object> body) {
+    public ResponseEntity<Map<String, Object>> storeComment(Authentication auth, @PathVariable Long id,
+                                                            @Valid @RequestBody CreateCommentRequest request) {
         var lesson = lessonService.getById(id);
         if (lesson.isEmpty()) return notfound();
 
@@ -183,7 +186,7 @@ public class LessonController extends BaseController {
             return unauthorized("Lesson access denied");
         }
 
-        var comment = lessonCommentService.createForUser(id, user.getId(), (String) body.get("content"));
+        var comment = lessonCommentService.createForUser(id, user.getId(), request.content());
         return created(comment, "Comment submitted");
     }
 }

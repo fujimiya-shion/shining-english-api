@@ -47,6 +47,7 @@ mysql-data/
 
 ### Deploy secrets ###
 deploy/ansible/.vault_pass
+.vault_pass
 deploy/ansible/inventory/production.yml
 
 ### macOS ###

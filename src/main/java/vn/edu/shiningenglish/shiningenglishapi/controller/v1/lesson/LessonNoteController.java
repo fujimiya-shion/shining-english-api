@@ -1,5 +1,6 @@
 package vn.edu.shiningenglish.shiningenglishapi.controller.v1.lesson;
 
+import jakarta.validation.Valid;
 import java.util.Map;
 
 import org.springframework.http.ResponseEntity;
@@ -13,6 +14,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import vn.edu.shiningenglish.shiningenglishapi.common.BaseController;
+import vn.edu.shiningenglish.shiningenglishapi.model.dto.request.CreateNoteRequest;
 import vn.edu.shiningenglish.shiningenglishapi.model.entity.User;
 import vn.edu.shiningenglish.shiningenglishapi.service.lesson.LessonNoteService;
 import vn.edu.shiningenglish.shiningenglishapi.service.lesson.LessonService;
@@ -44,12 +46,13 @@ public class LessonNoteController extends BaseController {
     }
 
     @PostMapping("/lessons/{id}/notes")
-    public ResponseEntity<Map<String, Object>> store(Authentication auth, @PathVariable Long id, @RequestBody Map<String, Object> body) {
+    public ResponseEntity<Map<String, Object>> store(Authentication auth, @PathVariable Long id,
+                                                     @Valid @RequestBody CreateNoteRequest request) {
         var user = (User) auth.getPrincipal();
         var lesson = lessonService.getById(id);
         if (lesson.isEmpty()) return notfound("Lesson not found");
 
-        var note = lessonNoteService.createForUser(user.getId(), id, (String) body.get("content"));
+        var note = lessonNoteService.createForUser(user.getId(), id, request.content());
         return created(note, "Note created");
     }
 

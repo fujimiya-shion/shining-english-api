@@ -1,5 +1,6 @@
 package vn.edu.shiningenglish.shiningenglishapi.controller.v1.course;
 
+import jakarta.validation.Valid;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -17,6 +18,8 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import vn.edu.shiningenglish.shiningenglishapi.common.BaseController;
+import vn.edu.shiningenglish.shiningenglishapi.model.dto.request.CreateReviewRequest;
+import vn.edu.shiningenglish.shiningenglishapi.model.dto.request.SetCurrentLessonRequest;
 import vn.edu.shiningenglish.shiningenglishapi.model.entity.User;
 import vn.edu.shiningenglish.shiningenglishapi.service.enrollment.EnrollmentService;
 import vn.edu.shiningenglish.shiningenglishapi.service.cart.CartService;
@@ -138,24 +141,25 @@ public class CourseController extends BaseController {
     }
 
     @PostMapping("/{id}/current-lesson")
-    public ResponseEntity<Map<String, Object>> setCurrentLesson(Authentication auth, @PathVariable Long id, @RequestBody Map<String, Object> body) {
+    public ResponseEntity<Map<String, Object>> setCurrentLesson(Authentication auth, @PathVariable Long id,
+                                                                @Valid @RequestBody SetCurrentLessonRequest request) {
         var user = (User) auth.getPrincipal();
-        var lessonId = ((Number) body.get("lesson_id")).longValue();
         if (!enrollmentService.isEnrolled(user.getId(), id)) {
             return unauthorized("Course access denied");
         }
-        var progress = enrollmentService.setCurrentLesson(user.getId(), id, lessonId);
+        var progress = enrollmentService.setCurrentLesson(user.getId(), id, request.lessonId());
         if (progress == null) return notfound();
         return success(progress);
     }
 
     @PostMapping("/{id}/reviews")
-    public ResponseEntity<Map<String, Object>> storeReview(Authentication auth, @PathVariable Long id, @RequestBody Map<String, Object> body) {
+    public ResponseEntity<Map<String, Object>> storeReview(Authentication auth, @PathVariable Long id,
+                                                           @Valid @RequestBody CreateReviewRequest request) {
         var user = (User) auth.getPrincipal();
         if (!enrollmentService.isEnrolled(user.getId(), id)) {
             return unauthorized("Course access denied");
         }
-        var review = courseReviewService.upsertByUser(id, user.getId(), (int) body.get("rating"), (String) body.get("content"));
+        var review = courseReviewService.upsertByUser(id, user.getId(), request.rating(), request.content());
         return created(review, "Review submitted");
     }
 }

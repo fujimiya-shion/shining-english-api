@@ -13,7 +13,7 @@ public class PaymentStrategyFactory {
     public PaymentStrategyFactory(ApplicationContext ctx) {
         this.strategies = Map.of(
             PaymentMethod.cod, ctx.getBean(CodPaymentStrategy.class),
-            PaymentMethod.payos, ctx.getBean(PayosPaymentStrategy.class),
+            PaymentMethod.payos, ctx.getBean(PayOsPaymentStrategy.class),
             PaymentMethod.star, ctx.getBean(StarPaymentStrategy.class)
         );
     }

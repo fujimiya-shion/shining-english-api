@@ -1,5 +1,6 @@
 package vn.edu.shiningenglish.shiningenglishapi.controller.v1.user;
 
+import jakarta.validation.Valid;
 import java.util.Map;
 
 import org.springframework.http.ResponseEntity;
@@ -14,6 +15,11 @@ import org.springframework.web.client.RestTemplate;
 
 import vn.edu.shiningenglish.shiningenglishapi.common.BaseController;
 import vn.edu.shiningenglish.shiningenglishapi.enums.AuthenticatedBy;
+import vn.edu.shiningenglish.shiningenglishapi.model.dto.request.ForgotPasswordRequest;
+import vn.edu.shiningenglish.shiningenglishapi.model.dto.request.LoginRequest;
+import vn.edu.shiningenglish.shiningenglishapi.model.dto.request.RegisterRequest;
+import vn.edu.shiningenglish.shiningenglishapi.model.dto.request.ResetPasswordRequest;
+import vn.edu.shiningenglish.shiningenglishapi.model.dto.request.ThirdPartyLoginRequest;
 import vn.edu.shiningenglish.shiningenglishapi.model.entity.User;
 import vn.edu.shiningenglish.shiningenglishapi.security.RecaptchaVerifier;
 import vn.edu.shiningenglish.shiningenglishapi.service.star.StarService;
@@ -35,94 +41,87 @@ public class AuthController extends BaseController {
     }
 
     @PostMapping("/register")
-    public ResponseEntity<Map<String, Object>> register(@RequestBody Map<String, Object> body) {
-        try {
-            recaptchaVerifier.verifyOrFail(
-                (String) body.get("recaptcha_token"),
-                "register",
-                (String) body.getOrDefault("ip_address", null)
-            );
-            var result = userService.register(
-                (String) body.get("name"),
-                (String) body.get("email"),
-                (String) body.get("phone"),
-                (String) body.get("password")
-            );
-            return created(result.toArray(), "Register successfully");
-        } catch (IllegalArgumentException e) {
-            return error(e.getMessage(), 422);
-        }
+    public ResponseEntity<Map<String, Object>> register(@Valid @RequestBody RegisterRequest request) {
+        recaptchaVerifier.verifyOrFail(
+            request.recaptchaToken(),
+            "register",
+            request.ipAddress()
+        );
+        var result = userService.register(
+            request.name(),
+            request.email(),
+            request.phone(),
+            request.password()
+        );
+        return created(result.toArray(), "Register successfully");
     }
 
     @PostMapping("/login")
-    public ResponseEntity<Map<String, Object>> login(@RequestBody Map<String, Object> body) {
-        try {
-            @SuppressWarnings("unchecked")
-            var deviceData = (Map<String, Object>) body;
-            var device = DeviceInfo.fromArray((Map<String, String>)(Map) body);
-            var result = userService.login(
-                (String) body.get("email"),
-                (String) body.get("password"),
-                device
-            );
-            return success("Login successfully", result.toArray());
-        } catch (IllegalArgumentException e) {
-            return error(e.getMessage(), 422);
-        }
+    public ResponseEntity<Map<String, Object>> login(@Valid @RequestBody LoginRequest request) {
+        var device = new DeviceInfo(
+            request.deviceIdentifier(),
+            request.deviceName(),
+            request.platform(),
+            request.ipAddress(),
+            request.userAgent()
+        );
+        var result = userService.login(
+            request.email(),
+            request.password(),
+            device
+        );
+        return success("Login successfully", result.toArray());
     }
 
-    @SuppressWarnings("unchecked")
     @PostMapping("/third-party-login")
-    public ResponseEntity<Map<String, Object>> thirdPartyLogin(@RequestBody Map<String, Object> body) {
-        try {
-            var device = DeviceInfo.fromArray((Map<String, String>)(Map) body);
-            var provider = (String) body.get("provider");
-            var accessToken = (String) body.get("access_token");
-            var providerEnum = AuthenticatedBy.valueOf(provider);
+    public ResponseEntity<Map<String, Object>> thirdPartyLogin(@Valid @RequestBody ThirdPartyLoginRequest request) {
+        var device = new DeviceInfo(
+            request.deviceIdentifier(),
+            request.deviceName(),
+            request.platform(),
+            request.ipAddress(),
+            request.userAgent()
+        );
+        var provider = request.provider();
+        var accessToken = request.accessToken();
+        var providerEnum = AuthenticatedBy.valueOf(provider);
 
-            // Verify with Google
-            String email;
-            String name;
-            String avatar = null;
-            if ("google".equals(provider) && accessToken != null) {
-                var restTemplate = new RestTemplate();
-                var url = "https://www.googleapis.com/oauth2/v3/userinfo?access_token=" + accessToken;
-                ResponseEntity<Map> response = restTemplate.getForEntity(url, Map.class);
-                var googleData = (Map<String, Object>) response.getBody();
-                email = (String) googleData.get("email");
-                name = (String) googleData.getOrDefault("name",
-                    (String) googleData.getOrDefault("given_name", email));
-                avatar = (String) googleData.getOrDefault("picture", null);
-            } else {
-                email = (String) body.get("email");
-                name = (String) body.getOrDefault("name", "User");
-            }
-
-            // Check if user already exists
-            var existingUser = userService.findByEmail(email);
-            if (existingUser.isEmpty()) {
-                // Register new third-party user
-                var registerResult = userService.register(name, email, null, null, providerEnum);
-                if (!registerResult.isSuccessfully()) {
-                    return error("Third party authentication failed", 422);
-                }
-                var createdUser = registerResult.getUser();
-                createdUser.setEmailVerifiedAt(java.time.LocalDateTime.now());
-                createdUser.setAvatar(avatar);
-                userService.save(createdUser);
-            } else {
-                // Update avatar if provided
-                if (avatar != null && existingUser.get().getAvatar() == null) {
-                    existingUser.get().setAvatar(avatar);
-                    userService.save(existingUser.get());
-                }
-            }
-
-            var loginResult = userService.login(email, null, device);
-            return success("Login by third-party successfully", loginResult.toArray());
-        } catch (Exception e) {
-            return error(e.getMessage(), 422);
+        String email;
+        String name;
+        String avatar = null;
+        if ("google".equals(provider) && accessToken != null) {
+            var restTemplate = new RestTemplate();
+            var url = "https://www.googleapis.com/oauth2/v3/userinfo?access_token=" + accessToken;
+            ResponseEntity<Map> response = restTemplate.getForEntity(url, Map.class);
+            var googleData = (Map<String, Object>) response.getBody();
+            email = (String) googleData.get("email");
+            name = (String) googleData.getOrDefault("name",
+                (String) googleData.getOrDefault("given_name", email));
+            avatar = (String) googleData.getOrDefault("picture", null);
+        } else {
+            email = request.email();
+            name = request.name() != null ? request.name() : "User";
         }
+
+        var existingUser = userService.findByEmail(email);
+        if (existingUser.isEmpty()) {
+            var registerResult = userService.register(name, email, null, null, providerEnum);
+            if (!registerResult.isSuccessfully()) {
+                return error("Third party authentication failed", 422);
+            }
+            var createdUser = registerResult.getUser();
+            createdUser.setEmailVerifiedAt(java.time.LocalDateTime.now());
+            createdUser.setAvatar(avatar);
+            userService.save(createdUser);
+        } else {
+            if (avatar != null && existingUser.get().getAvatar() == null) {
+                existingUser.get().setAvatar(avatar);
+                userService.save(existingUser.get());
+            }
+        }
+
+        var loginResult = userService.login(email, null, device);
+        return success("Login by third-party successfully", loginResult.toArray());
     }
 
     @GetMapping("/me")
@@ -149,17 +148,17 @@ public class AuthController extends BaseController {
     }
 
     @PostMapping("/forgot-password")
-    public ResponseEntity<Map<String, Object>> forgotPassword(@RequestBody Map<String, Object> body) {
-        userService.sendPasswordResetLink((String) body.get("email"));
+    public ResponseEntity<Map<String, Object>> forgotPassword(@Valid @RequestBody ForgotPasswordRequest request) {
+        userService.sendPasswordResetLink(request.email());
         return success("If your email exists, a password reset link has been sent.");
     }
 
     @PostMapping("/reset-password")
-    public ResponseEntity<Map<String, Object>> resetPassword(@RequestBody Map<String, Object> body) {
+    public ResponseEntity<Map<String, Object>> resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
         var reset = userService.resetPassword(
-            (String) body.get("email"),
-            (String) body.get("token"),
-            (String) body.get("password")
+            request.email(),
+            request.token(),
+            request.password()
         );
         if (!reset) return error("Invalid or expired reset token.", 422);
         return success("Password reset successfully.");
