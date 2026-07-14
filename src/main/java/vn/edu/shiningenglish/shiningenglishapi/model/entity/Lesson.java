@@ -2,6 +2,12 @@ package vn.edu.shiningenglish.shiningenglishapi.model.entity;
 
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import vn.edu.shiningenglish.shiningenglishapi.model.converter.JsonStringListConverter;
+import vn.edu.shiningenglish.shiningenglishapi.model.converter.JsonStringMapConverter;
 
 @Entity
 @Table(name = "lessons")
@@ -35,11 +41,13 @@ public class Lesson {
     @Column(name = "video_url")
     private String videoUrl;
 
+    @Convert(converter = JsonStringListConverter.class)
     @Column(columnDefinition = "JSON")
-    private String documents;
+    private List<String> documents = new ArrayList<>();
 
+    @Convert(converter = JsonStringMapConverter.class)
     @Column(name = "document_names", columnDefinition = "JSON")
-    private String documentNames;
+    private Map<String, String> documentNames = new HashMap<>();
 
     @Column(columnDefinition = "TEXT")
     private String description;
@@ -95,10 +103,10 @@ public class Lesson {
     public void setLessonOrder(Integer lessonOrder) { this.lessonOrder = lessonOrder; }
     public String getVideoUrl() { return videoUrl; }
     public void setVideoUrl(String videoUrl) { this.videoUrl = videoUrl; }
-    public String getDocuments() { return documents; }
-    public void setDocuments(String documents) { this.documents = documents; }
-    public String getDocumentNames() { return documentNames; }
-    public void setDocumentNames(String documentNames) { this.documentNames = documentNames; }
+    public List<String> getDocuments() { return documents; }
+    public void setDocuments(List<String> documents) { this.documents = documents; }
+    public Map<String, String> getDocumentNames() { return documentNames; }
+    public void setDocumentNames(Map<String, String> documentNames) { this.documentNames = documentNames; }
     public String getDescription() { return description; }
     public void setDescription(String description) { this.description = description; }
     public Integer getDurationMinutes() { return durationMinutes; }

@@ -17,7 +17,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import tools.jackson.databind.ObjectMapper;
 import vn.edu.shiningenglish.shiningenglishapi.common.BaseController;
 import vn.edu.shiningenglish.shiningenglishapi.model.entity.User;
 import vn.edu.shiningenglish.shiningenglishapi.model.dto.request.CreateCommentRequest;
@@ -101,35 +100,26 @@ public class LessonController extends BaseController {
             return unauthorized("Lesson access denied");
         }
 
-        var docsJson = lesson.get().getDocuments();
-        if (docsJson == null || docsJson.isBlank()) return notfound();
-        try {
-            var mapper = new ObjectMapper();
-            var paths = mapper.readValue(docsJson, String[].class);
-            if (documentIndex < 0 || documentIndex >= paths.length) return notfound();
-            var path = paths[documentIndex];
-            if (path == null || path.isBlank()) return notfound();
+        var paths = lesson.get().getDocuments();
+        if (paths == null || paths.isEmpty()) return notfound();
+        if (documentIndex < 0 || documentIndex >= paths.size()) return notfound();
+        var path = paths.get(documentIndex);
+        if (path == null || path.isBlank()) return notfound();
 
-            var file = new java.io.File(path);
-            if (!file.exists()) return notfound();
-            var resource = new FileSystemResource(file);
+        var file = new java.io.File(path);
+        if (!file.exists()) return notfound();
+        var resource = new FileSystemResource(file);
 
-            var namesJson = lesson.get().getDocumentNames();
-            var fileName = file.getName();
-            if (namesJson != null && !namesJson.isBlank()) {
-                var names = mapper.readValue(namesJson, String[].class);
-                if (documentIndex < names.length && names[documentIndex] != null && !names[documentIndex].isBlank()) {
-                    fileName = names[documentIndex];
-                }
-            }
-
-            return ResponseEntity.ok()
-                .contentType(MediaType.APPLICATION_OCTET_STREAM)
-                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + fileName + "\"")
-                .body(resource);
-        } catch (Exception e) {
-            return notfound();
+        var documentNames = lesson.get().getDocumentNames();
+        var fileName = file.getName();
+        if (documentNames != null && documentNames.containsKey(path)) {
+            fileName = documentNames.get(path);
         }
+
+        return ResponseEntity.ok()
+            .contentType(MediaType.APPLICATION_OCTET_STREAM)
+            .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + fileName + "\"")
+            .body(resource);
     }
 
     @GetMapping("/{id}/quiz")
