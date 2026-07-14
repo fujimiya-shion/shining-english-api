@@ -38,11 +38,11 @@ public class CourseService {
     }
 
     public Optional<Course> getById(Long id) {
-        return courseRepository.findById(id);
+        return courseRepository.findWithLessonsById(id);
     }
 
     public Optional<Course> getBySlug(String slug) {
-        return courseRepository.findBySlugAndStatus(slug, true);
+        return courseRepository.findWithLessonsBySlugAndStatus(slug, true);
     }
 
     public Page<Course> getFree(QueryOption options) {

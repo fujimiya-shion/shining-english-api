@@ -2,6 +2,8 @@ package vn.edu.shiningenglish.shiningenglishapi.model.entity;
 
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "courses")
@@ -52,6 +54,10 @@ public class Course {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
+    @OneToMany(fetch = FetchType.LAZY)
+    @JoinColumn(name = "course_id")
+    private List<Lesson> lessons = new ArrayList<>();
+
     @PrePersist
     protected void onCreate() {
         createdAt = LocalDateTime.now();
@@ -91,4 +97,6 @@ public class Course {
     public void setDeletedAt(LocalDateTime deletedAt) { this.deletedAt = deletedAt; }
     public LocalDateTime getCreatedAt() { return createdAt; }
     public LocalDateTime getUpdatedAt() { return updatedAt; }
+    public List<Lesson> getLessons() { return lessons; }
+    public void setLessons(List<Lesson> lessons) { this.lessons = lessons; }
 }
